@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Anleitung hochladen</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Anleitung hochladen</h1>
+
+        {% from 'includes/navigation.html' import nav_upload_manual %}
+        {{ nav_upload_manual() }}
+
+
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}
+            <div class="messages">
+              {% for message in messages %}
+                <div class="message">{{ message }}</div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
+        
+        <div class="content">
+            <form method="post" enctype="multipart/form-data" class="form">
+                <div class="form-group">
+                    <label for="file">PDF-Datei auswählen</label>
+                    <input type="file" id="file" name="file" accept=".pdf" required>
+                    <div class="form-hint">Maximale Dateigröße: 16 MB</div>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="button primary">Hochladen</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

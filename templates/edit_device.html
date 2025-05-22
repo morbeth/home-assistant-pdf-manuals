@@ -1,0 +1,145 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Gerät bearbeiten</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+<div class="container">
+    <h1>Gerät bearbeiten</h1>
+
+    {% from 'includes/navigation.html' import nav_add_edit_device %}
+    {{ nav_add_edit_device() }}
+
+    {% with messages = get_flashed_messages() %}
+    {% if messages %}
+    <div class="messages">
+        {% for message in messages %}
+        <div class="message">{{ message }}</div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <div class="content">
+        <form method="post" class="form">
+            <div class="form-group">
+                <label for="name">Name*</label>
+                <input type="text" id="name" name="name" value="{{ device.name }}" required>
+            </div>
+
+            <div class="form-group">
+                <label for="type">Typ*</label>
+                <select id="type" name="type" required>
+                    <option value="">-- Bitte wählen --</option>
+                    <option value="Beleuchtung" {% if device.type == 'Beleuchtung' %}selected{% endif %}>Beleuchtung</option>
+                    <option value="Schalter" {% if device.type == 'Schalter' %}selected{% endif %}>Schalter</option>
+                    <option value="Sensor" {% if device.type == 'Sensor' %}selected{% endif %}>Sensor</option>
+                    <option value="Binärer Sensor" {% if device.type == 'Binärer Sensor' %}selected{% endif %}>Binärer Sensor</option>
+                    <option value="Klima" {% if device.type == 'Klima' %}selected{% endif %}>Klima</option>
+                    <option value="Medienplayer" {% if device.type == 'Medienplayer' %}selected{% endif %}>Medienplayer</option>
+                    <option value="Kamera" {% if device.type == 'Kamera' %}selected{% endif %}>Kamera</option>
+                    <option value="Staubsauger" {% if device.type == 'Staubsauger' %}selected{% endif %}>Staubsauger</option>
+                    <option value="Sonstiges" {% if device.type == 'Sonstiges' %}selected{% endif %}>Sonstiges</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="location">Standort*</label>
+                <select id="location" name="location" required>
+                    <option value="">-- Bitte wählen --</option>
+                    {% for area in areas %}
+                    <option value="{{ area.name }}" {% if device.location == area.name %}selected{% endif %}>{{ area.name }}</option>
+                    {% endfor %}
+                    <option value="Sonstiger Ort" id="sonstigerOrt">Sonstiger Ort</option>
+                </select>
+            </div>
+
+            <div class="form-group" id="customLocationGroup" style="display: none;">
+                <label for="customLocation">Eigener Standort*</label>
+                <input type="text" id="customLocation" name="customLocation">
+            </div>
+
+            <div class="form-group">
+                <label for="manual">Anleitung</label>
+                <select id="manual" name="manual">
+                    <option value="">-- Keine Anleitung --</option>
+                    {% for manual in manuals %}
+                    <option value="{{ manual }}" {% if device.manual == manual %}selected{% endif %}>{{ manual }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="button primary">Gerät aktualisieren</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Funktion zum Überprüfen, ob der aktuelle Standort in der Liste der Bereiche ist
+    function checkLocationInAreas() {
+        var locationSelect = document.getElementById('location');
+        var customLocationGroup = document.getElementById('customLocationGroup');
+        var customLocationInput = document.getElementById('customLocation');
+        var sonstigerOrtOption = document.getElementById('sonstigerOrt');
+
+        // Überprüfen, ob der aktuelle Standort in der Liste der Bereiche ist
+        var currentLocation = "{{ device.location }}";
+        var areaNames = [{% for area in areas %}"{{ area.name }}"{% if not loop.last %}, {% endif %}{% endfor %}];
+
+        // Wenn der aktuelle Standort nicht in der Liste der Bereiche ist und nicht 'Unbekannt' ist
+        if (areaNames.indexOf(currentLocation) === -1 && currentLocation !== "Unbekannt") {
+            // 'Sonstiger Ort' auswählen
+            sonstigerOrtOption.selected = true;
+
+            // Eigenen Standort anzeigen und mit aktuellem Wert füllen
+            customLocationGroup.style.display = 'block';
+            customLocationInput.required = true;
+            customLocationInput.value = currentLocation;
+        }
+    }
+
+    // Bei Änderung des Standorts
+    document.getElementById('location').addEventListener('change', function() {
+        var customLocationGroup = document.getElementById('customLocationGroup');
+        var customLocationInput = document.getElementById('customLocation');
+
+        if (this.value === 'Sonstiger Ort') {
+            customLocationGroup.style.display = 'block';
+            customLocationInput.required = true;
+        } else {
+            customLocationGroup.style.display = 'none';
+            customLocationInput.required = false;
+            customLocationInput.value = '';
+        }
+    });
+
+    // Formular-Validierung überschreiben
+    document.querySelector('form').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        var locationSelect = document.getElementById('location');
+        var customLocationInput = document.getElementById('customLocation');
+
+        // Wenn "Sonstiger Ort" ausgewählt ist, verwenden Sie den benutzerdefinierten Wert
+        if (locationSelect.value === 'Sonstiger Ort') {
+            if (!customLocationInput.value.trim()) {
+                alert('Bitte geben Sie einen eigenen Standort ein.');
+                return;
+            }
+            locationSelect.value = customLocationInput.value;
+        }
+
+        this.submit();
+    });
+
+    // Initialisierung
+    window.onload = function() {
+        checkLocationInAreas();
+    };
+</script>
+</body>
+</html>

@@ -1,0 +1,266 @@
+/* Allgemeine Stile */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    line-height: 1.6;
+    color: #333;
+    background-color: #f5f5f5;
+    padding: 20px;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    background-color: #fff;
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+}
+
+h1 {
+    color: #2c3e50;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+}
+
+h2 {
+    color: #3498db;
+    margin: 20px 0 10px;
+}
+
+/* Navigation und Buttons */
+.navigation {
+    display: flex;
+    margin-bottom: 20px;
+    gap: 10px;
+}
+
+.button {
+    display: inline-block;
+    padding: 8px 16px;
+    background-color: #ecf0f1;
+    color: #2c3e50;
+    border-radius: 4px;
+    text-decoration: none;
+    border: 1px solid #ddd;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.3s;
+}
+
+.button:hover {
+    background-color: #dfe4ea;
+}
+
+.button.primary {
+    background-color: #3498db;
+    color: white;
+    border-color: #2980b9;
+}
+
+.button.primary:hover {
+    background-color: #2980b9;
+}
+
+/* Tabellen */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+
+.data-table th, .data-table td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+.data-table th {
+    background-color: #f8f9fa;
+    font-weight: bold;
+}
+
+.data-table tr:hover {
+    background-color: #f1f2f6;
+}
+
+.data-table .empty {
+    text-align: center;
+    padding: 30px;
+    color: #777;
+    font-style: italic;
+}
+
+/* Aktions-Buttons in Tabellen */
+.actions {
+    display: flex;
+    gap: 5px;
+}
+
+.action-btn {
+    padding: 5px 10px;
+    border-radius: 3px;
+    text-decoration: none;
+    font-size: 12px;
+}
+
+.action-btn.edit {
+    background-color: #f39c12;
+    color: white;
+}
+
+.action-btn.delete {
+    background-color: #e74c3c;
+    color: white;
+}
+
+.action-btn.view {
+    background-color: #3498db;
+    color: white;
+}
+
+/* Formulare */
+.form {
+    max-width: 600px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.form-group input, .form-group select {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 16px;
+}
+
+.form-hint {
+    font-size: 12px;
+    color: #777;
+    margin-top: 5px;
+}
+
+.form-actions {
+    margin-top: 20px;
+}
+
+/* Flash-Nachrichten */
+.messages {
+    margin-bottom: 20px;
+}
+
+.message {
+    padding: 10px 15px;
+    background-color: #d4edda;
+    color: #155724;
+    border-radius: 4px;
+    margin-bottom: 10px;
+}
+
+/* Dashboard */
+.dashboard {
+    margin-bottom: 30px;
+}
+
+.stats {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.stat-box {
+    flex: 1;
+    background-color: #f8f9fa;
+    border-radius: 5px;
+    padding: 15px;
+    text-align: center;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+.stat-box h3 {
+    font-size: 16px;
+    margin-bottom: 10px;
+    color: #3498db;
+}
+
+.count {
+    font-size: 28px;
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+/* Listen */
+.list {
+    list-style: none;
+    margin-bottom: 30px;
+}
+
+.list li {
+    padding: 12px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    align-items: center;
+}
+
+.list li:last-child {
+    border-bottom: none;
+}
+
+.list .name {
+    flex: 2;
+    font-weight: bold;
+}
+
+.list .info {
+    flex: 2;
+    color: #777;
+    font-size: 14px;
+}
+
+.list .action {
+    flex: 1;
+    text-align: right;
+    text-decoration: none;
+    color: #3498db;
+}
+
+.list .action.disabled {
+    color: #aaa;
+    cursor: not-allowed;
+}
+
+.list .empty {
+    text-align: center;
+    padding: 20px;
+    color: #777;
+    font-style: italic;
+}
+
+/* Falls noch nicht vorhanden, fügen Sie diese Styles hinzu */
+.form-group select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background-color: white;
+}
+
+#customLocationGroup {
+    margin-top: -10px;
+    padding-left: 15px;
+    border-left: 3px solid #ddd;
+}

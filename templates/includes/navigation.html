@@ -1,0 +1,34 @@
+{% macro nav_main() %}
+<div class="navigation">
+    <a href="{{ url_for('index') }}" class="button active">Übersicht</a>
+    <a href="{{ url_for('list_devices') }}" class="button">Geräte</a>
+    <a href="{{ url_for('list_manuals') }}" class="button">Anleitungen</a>
+</div>
+{% endmacro %}
+
+{% macro nav_manuals() %}
+<div class="navigation">
+    <a href="{{ url_for('index') }}" class="button">Zurück zur Übersicht</a>
+    <a href="{{ url_for('upload_manual') }}" class="button primary">Anleitung hochladen</a>
+</div>
+{% endmacro %}
+
+{% macro nav_upload_manual() %}
+<div class="navigation">
+    <a href="{{ url_for('list_manuals') }}" class="button">Zurück zur Anleitungsübersicht</a>
+</div>
+{% endmacro %}
+
+{% macro nav_devices() %}
+<div class="navigation">
+    <a href="{{ url_for('index') }}" class="button">Zurück zur Übersicht</a>
+    <a href="{{ url_for('add_device') }}" class="button primary">Gerät hinzufügen</a>
+    <a href="{{ url_for('import_ha_devices') }}" class="button action">Geräte aus HA importieren</a>
+</div>
+{% endmacro %}
+
+{% macro nav_add_edit_device() %}
+<div class="navigation">
+    <a href="{{ url_for('list_devices') }}" class="button">Zurück zur Geräteübersicht</a>
+</div>
+{% endmacro %}

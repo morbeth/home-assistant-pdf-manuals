@@ -1,0 +1,74 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Geräte verwalten</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+<div class="container">
+    <h1>Geräte verwalten</h1>
+
+    {% from 'includes/navigation.html' import nav_devices %}
+    {{ nav_devices() }}
+
+    {% with messages = get_flashed_messages() %}
+    {% if messages %}
+    <div class="messages">
+        {% for message in messages %}
+        <div class="message">{{ message }}</div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <div class="content">
+        <table class="data-table">
+            <thead>
+            <tr>
+                <th>Name</th>
+                <th>Typ</th>
+                <th>Standort</th>
+                <th>Anleitung</th>
+                {% if devices and devices[0].get('ha_imported') %}
+                <th>Hersteller</th>
+                <th>Modell</th>
+                {% endif %}
+                <th>Aktionen</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for device in devices %}
+            <tr>
+                <td>{{ device.name }}</td>
+                <td>{{ device.type }}</td>
+                <td>{{ device.location }}</td>
+                <td>
+                    {% if device.manual %}
+                    <a href="{{ url_for('view_manual', filename=device.manual) }}">{{ device.manual }}</a>
+                    {% else %}
+                    <span class="empty">Keine Anleitung</span>
+                    {% endif %}
+                </td>
+                {% if devices and devices[0].get('ha_imported') %}
+                <td>{{ device.get('manufacturer', 'Unbekannt') }}</td>
+                <td>{{ device.get('model', 'Unbekannt') }}</td>
+                {% endif %}
+                <td class="actions">
+                    <a href="{{ url_for('edit_device', device_id=loop.index0) }}" class="action-btn edit">Bearbeiten</a>
+                    <a href="{{ url_for('delete_device', device_id=loop.index0) }}"
+                       class="action-btn delete"
+                       onclick="return confirm('Gerät wirklich löschen?')">Löschen</a>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5" class="empty">Keine Geräte vorhanden</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+</body>
+</html>

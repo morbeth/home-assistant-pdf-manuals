@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PDF-Anleitungen verwalten</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+<div class="container">
+    <h1>PDF-Anleitungen verwalten</h1>
+
+    {% from 'includes/navigation.html' import nav_manuals %}
+    {{ nav_manuals() }}
+
+    {% with messages = get_flashed_messages() %}
+    {% if messages %}
+    <div class="messages">
+        {% for message in messages %}
+        <div class="message">{{ message }}</div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <div class="content">
+        <table class="data-table">
+            <thead>
+            <tr>
+                <th>Name</th>
+                <th>Seitenanzahl</th>
+                <th>Größe</th>
+                <th>Hochgeladen am</th>
+                <th>Aktionen</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for manual in manuals %}
+            <tr>
+                <td>{{ manual.name }}</td>
+                <td>{{ manual.pages }} Seiten</td>
+                <td>{{ (manual.size / 1024)|round(1) }} KB</td>
+                <td>{{ manual.timestamp|strftime('%d.%m.%Y %H:%M') }}</td>
+                <td class="actions">
+                    <a href="{{ url_for('view_manual', filename=manual.name) }}" class="action-btn view" target="_blank">Anzeigen</a>
+                    <a href="{{ url_for('delete_manual', filename=manual.name) }}"
+                       class="action-btn delete"
+                       onclick="return confirm('Anleitung wirklich löschen?')">Löschen</a>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5" class="empty">Keine Anleitungen vorhanden</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+</body>
+</html>

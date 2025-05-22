@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Gerät hinzufügen</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+<div class="container">
+    <h1>Gerät hinzufügen</h1>
+
+    {% from 'includes/navigation.html' import nav_add_edit_device %}
+    {{ nav_add_edit_device() }}
+
+    {% with messages = get_flashed_messages() %}
+    {% if messages %}
+    <div class="messages">
+        {% for message in messages %}
+        <div class="message">{{ message }}</div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <div class="content">
+        <form method="post" action="{{ url_for('add_device') }}" class="form">
+            <div class="form-group">
+                <label for="name">Name*</label>
+                <input type="text" id="name" name="name" required>
+            </div>
+
+            <div class="form-group">
+                <label for="type">Typ*</label>
+                <select id="type" name="type" required>
+                    <option value="">-- Bitte wählen --</option>
+                    <option value="Beleuchtung">Beleuchtung</option>
+                    <option value="Schalter">Schalter</option>
+                    <option value="Sensor">Sensor</option>
+                    <option value="Binärer Sensor">Binärer Sensor</option>
+                    <option value="Klima">Klima</option>
+                    <option value="Medienplayer">Medienplayer</option>
+                    <option value="Kamera">Kamera</option>
+                    <option value="Staubsauger">Staubsauger</option>
+                    <option value="Sonstiges">Sonstiges</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="location">Standort*</label>
+                <select id="location" name="location" required>
+                    <option value="">-- Bitte wählen --</option>
+                    {% for area in areas %}
+                    <option value="{{ area.name }}">{{ area.name }}</option>
+                    {% endfor %}
+                    <option value="Sonstiger Ort">Sonstiger Ort</option>
+                </select>
+            </div>
+
+            <div class="form-group" id="customLocationGroup" style="display: none;">
+                <label for="customLocation">Eigener Standort*</label>
+                <input type="text" id="customLocation" name="customLocation">
+            </div>
+
+            <div class="form-group">
+                <label for="manual">Anleitung</label>
+                <select id="manual" name="manual">
+                    <option value="">-- Keine Anleitung --</option>
+                    {% for manual in manuals %}
+                    <option value="{{ manual }}">{{ manual }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="button primary">Gerät hinzufügen</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // JavaScript für den eigenen Standort
+    document.getElementById('location').addEventListener('change', function() {
+        var customLocationGroup = document.getElementById('customLocationGroup');
+        var customLocationInput = document.getElementById('customLocation');
+
+        if (this.value === 'Sonstiger Ort') {
+            customLocationGroup.style.display = 'block';
+            customLocationInput.required = true;
+        } else {
+            customLocationGroup.style.display = 'none';
+            customLocationInput.required = false;
+            customLocationInput.value = '';
+        }
+    });
+
+    // Formular-Validierung überschreiben
+    document.querySelector('form').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        var locationSelect = document.getElementById('location');
+        var customLocationInput = document.getElementById('customLocation');
+
+        // Wenn "Sonstiger Ort" ausgewählt ist, verwenden Sie den benutzerdefinierten Wert
+        if (locationSelect.value === 'Sonstiger Ort') {
+            if (!customLocationInput.value.trim()) {
+                alert('Bitte geben Sie einen eigenen Standort ein.');
+                return;
+            }
+            locationSelect.value = customLocationInput.value;
+        }
+
+        this.submit();
+    });
+</script>
+</body>
+</html>
