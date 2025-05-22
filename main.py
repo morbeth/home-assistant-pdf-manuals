@@ -12,6 +12,32 @@ app = Flask(__name__,
             static_url_path='/static')  # URL-Pfad für statische Dateien
 app.secret_key = os.urandom(24)
 
+# Nach der Flask-App-Initialisierung und vor den Routen hinzufügen
+@app.before_request
+def fix_ingress():
+    """Korrigiert die URL für Home Assistant Ingress"""
+    # X-Ingress-Path Header von Nginx enthält den Basispfad
+    ingress_path = request.headers.get('X-Ingress-Path', '')
+    if ingress_path:
+        # WSGI-Umgebung anpassen
+        script_name = request.environ.get('HTTP_X_SCRIPT_NAME', '')
+        if script_name:
+            request.environ['SCRIPT_NAME'] = script_name
+            path_info = request.environ['PATH_INFO']
+            if path_info.startswith(script_name):
+                request.environ['PATH_INFO'] = path_info[len(script_name):]
+
+# Nach der fix_ingress-Funktion hinzufügen
+def get_base_url():
+    """Gibt die Basis-URL für Links zurück, unter Berücksichtigung von Ingress"""
+    script_name = request.environ.get('SCRIPT_NAME', '')
+    return script_name
+
+# Die Funktion für alle Templates verfügbar machen
+@app.context_processor
+def inject_base_url():
+    """Fügt die Basis-URL in alle Templates ein"""
+    return dict(base_url=get_base_url())
 
 # Jinja2 Filter für Datumsformatierung hinzufügen
 @app.template_filter('strftime')
