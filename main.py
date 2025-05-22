@@ -7,8 +7,11 @@ import PyPDF2
 from werkzeug.utils import secure_filename
 from home_assistant_api import HomeAssistantAPI  # Importieren Sie die HomeAssistantAPI-Klasse
 
-app = Flask(__name__)
+app = Flask(__name__,
+            static_folder='static',  # Ordner mit statischen Dateien
+            static_url_path='/static')  # URL-Pfad für statische Dateien
 app.secret_key = os.urandom(24)
+
 
 # Jinja2 Filter für Datumsformatierung hinzufügen
 @app.template_filter('strftime')
@@ -241,6 +244,10 @@ def delete_device(device_id):
         flash('Gerät erfolgreich gelöscht')
 
     return redirect(url_for('list_devices'))
+
+@app.route('/static/<path:filename>')
+def serve_static(filename):
+    return send_from_directory('static', filename)
 
 @app.route('/import_ha_devices')
 def import_ha_devices():
