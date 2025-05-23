@@ -23,10 +23,13 @@ class HomeAssistantAPI:
             devices = []
             device_registry = self.get_device_registry()
             
+            # Entity Registry nur einmal abrufen
+            entity_registry = self.get_entity_registry()
+            
             for state in all_states:
                 entity_id = state['entity_id']
                 # Prüfen, ob die Entity zu einem Gerät gehört
-                device_info = self.find_device_for_entity(entity_id, device_registry)
+                device_info = self.find_device_for_entity(entity_id, device_registry, entity_registry)
                 if device_info and device_info not in devices:
                     devices.append(device_info)
             
@@ -44,14 +47,20 @@ class HomeAssistantAPI:
         except Exception as e:
             print(f"Fehler beim Abrufen des Geräteregisters: {e}")
             return []
-    
-    def find_device_for_entity(self, entity_id, device_registry):
-        """Findet das Gerät für eine bestimmte Entity"""
+
+    def get_entity_registry(self):
+        """Holt das Entity-Register aus Home Assistant"""
         try:
             response = requests.get(f"{self.base_url}/config/entity_registry", headers=self.headers)
             response.raise_for_status()
-            entity_registry = response.json()
-            
+            return response.json()
+        except Exception as e:
+            print(f"Fehler beim Abrufen des Entity-Registers: {e}")
+            return []
+
+    def find_device_for_entity(self, entity_id, device_registry, entity_registry):
+        """Findet das Gerät für eine bestimmte Entity"""
+        try:
             # Suchen Sie die Entity in der Registry
             for entity in entity_registry:
                 if entity['entity_id'] == entity_id and 'device_id' in entity:
@@ -67,6 +76,7 @@ class HomeAssistantAPI:
                                 'type': self.get_device_type(entity_id),
                                 'location': self.get_device_area(device['area_id']) if 'area_id' in device else 'Unbekannt'
                             }
+            # Keine Fehlermeldung ausgeben, wenn keine Zuordnung gefunden wird
             return None
         except Exception as e:
             print(f"Fehler beim Suchen des Geräts für Entity {entity_id}: {e}")
