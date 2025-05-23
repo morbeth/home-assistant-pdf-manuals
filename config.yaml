@@ -1,6 +1,6 @@
 
 name: "PDF-Anleitungen"
-version: "1.0.3"
+version: "1.0.4"
 slug: "pdf_manuals"
 description: "Hochladen und Verwalten von PDF-Anleitungen für Ihre Geräte"
 url: "https://github.com/yourusername/home-assistant-pdf-manuals"

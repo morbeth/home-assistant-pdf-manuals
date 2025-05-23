@@ -25,3 +25,10 @@
     <a href="{{ base_url }}{{ url_for('import_ha_devices') }}" class="nav-item">Aus Home Assistant importieren</a>
 </nav>
 {% endmacro %}
+
+{% macro nav_add_edit_device() %}
+<nav class="sub-nav">
+    <a href="{{ base_url }}{{ url_for('list_devices') }}" class="nav-item">Zurück zur Geräteübersicht</a>
+    <a href="{{ base_url }}{{ url_for('list_manuals') }}" class="nav-item">Anleitungen anzeigen</a>
+</nav>
+{% endmacro %}
