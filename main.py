@@ -6,6 +6,7 @@ import datetime
 import PyPDF2
 from werkzeug.utils import secure_filename
 from home_assistant_api import HomeAssistantAPI  # Importieren Sie die HomeAssistantAPI-Klasse
+from urllib.parse import urljoin
 
 app = Flask(__name__,
             static_folder='static',  # Ordner mit statischen Dateien
@@ -20,24 +21,59 @@ def fix_ingress():
     ingress_path = request.headers.get('X-Ingress-Path', '')
     if ingress_path:
         # WSGI-Umgebung anpassen
-        script_name = request.environ.get('HTTP_X_SCRIPT_NAME', '')
-        if script_name:
-            request.environ['SCRIPT_NAME'] = script_name
-            path_info = request.environ['PATH_INFO']
-            if path_info.startswith(script_name):
-                request.environ['PATH_INFO'] = path_info[len(script_name):]
+        request.environ['SCRIPT_NAME'] = ingress_path
+        path_info = request.environ['PATH_INFO']
+        if path_info.startswith(ingress_path):
+            request.environ['PATH_INFO'] = path_info[len(ingress_path):]
+        
+        # Debug-Informationen ausgeben
+        print(f"Ingress aktiviert: Pfad={ingress_path}, PATH_INFO={request.environ['PATH_INFO']}")
 
 # Nach der fix_ingress-Funktion hinzufügen
 def get_base_url():
     """Gibt die Basis-URL für Links zurück, unter Berücksichtigung von Ingress"""
     script_name = request.environ.get('SCRIPT_NAME', '')
-    return script_name
+    if script_name:
+        # Wenn ein Ingress-Pfad existiert, verwende ihn
+        print(f"Verwende Basis-URL: {script_name}")
+        return script_name
+    
+    # Wenn kein Ingress-Pfad existiert, versuche den Host mit Port zu konstruieren
+    host = request.host
+    if not ':' in host and app.config.get('SERVER_PORT'):
+        # Wenn der Host keinen Port enthält, füge ihn hinzu
+        host = f"{host}:{app.config.get('SERVER_PORT')}"
+    
+    # Verwende das gleiche Schema (http/https) wie die Anfrage
+    scheme = request.scheme
+    base_url = f"{scheme}://{host}"
+    print(f"Konstruierte Basis-URL: {base_url}")
+    return ""  # Gib einen leeren String zurück, da die URL durch Flask mit Hostnamen erstellt wird
 
 # Die Funktion für alle Templates verfügbar machen
 @app.context_processor
 def inject_base_url():
     """Fügt die Basis-URL in alle Templates ein"""
     return dict(base_url=get_base_url())
+
+# Überschreibe die url_for-Funktion für korrekte URLs
+def custom_url_for(endpoint, **values):
+    """Fügt die Basis-URL zu den generierten URLs hinzu"""
+    original_url = url_for(endpoint, **values)
+    base_url = get_base_url()
+    
+    if base_url and not original_url.startswith(base_url):
+        # Wenn die Basis-URL noch nicht im Original enthalten ist
+        if original_url.startswith('/'):
+            # Entferne den führenden Slash, um Doppel-Slashes zu vermeiden
+            original_url = original_url[1:]
+        result = urljoin(base_url + '/', original_url)
+        return result
+    
+    return original_url
+
+# Ersetze die globale url_for-Funktion
+app.jinja_env.globals['url_for'] = custom_url_for
 
 # Jinja2 Filter für Datumsformatierung hinzufügen
 @app.template_filter('strftime')
@@ -138,12 +174,12 @@ def upload_manual():
     if request.method == 'POST':
         if 'file' not in request.files:
             flash('Keine Datei ausgewählt')
-            return redirect(request.url)
+            return redirect(custom_url_for('upload_manual'))
         
         file = request.files['file']
         if file.filename == '':
             flash('Keine Datei ausgewählt')
-            return redirect(request.url)
+            return redirect(custom_url_for('upload_manual'))
         
         if file and file.filename.lower().endswith('.pdf'):
             filename = secure_filename(file.filename)
@@ -152,14 +188,14 @@ def upload_manual():
             # Überprüfen, ob die Datei bereits existiert
             if os.path.exists(filepath):
                 flash(f'Die Datei {filename} existiert bereits')
-                return redirect(request.url)
+                return redirect(custom_url_for('upload_manual'))
             
             file.save(filepath)
             flash('Anleitung erfolgreich hochgeladen')
-            return redirect(url_for('list_manuals'))
+            return redirect(custom_url_for('list_manuals'))
         else:
             flash('Nur PDF-Dateien sind erlaubt')
-            return redirect(request.url)
+            return redirect(custom_url_for('upload_manual'))
     
     return render_template('upload_manual.html')
 
@@ -184,7 +220,7 @@ def delete_manual(filename):
     else:
         flash(f'Anleitung {filename} wurde nicht gefunden')
     
-    return redirect(url_for('list_manuals'))
+    return redirect(custom_url_for('list_manuals'))
 
 @app.route('/add_device', methods=['GET', 'POST'])
 def add_device():
@@ -196,7 +232,7 @@ def add_device():
         
         if not name or not device_type or not location:
             flash('Bitte füllen Sie alle Pflichtfelder aus')
-            return redirect(url_for('add_device'))
+            return redirect(custom_url_for('add_device'))
 
         # Neues Gerät erstellen
         new_device = {
@@ -212,7 +248,7 @@ def add_device():
         save_devices(devices)
 
         flash('Gerät erfolgreich hinzugefügt')
-        return redirect(url_for('list_devices'))
+        return redirect(custom_url_for('list_devices'))
 
     # Anleitungen für die Auswahl laden
     manuals = [manual['name'] for manual in load_manuals()]
@@ -228,7 +264,7 @@ def edit_device(device_id):
 
     if device_id < 0 or device_id >= len(devices):
         flash('Gerät nicht gefunden')
-        return redirect(url_for('list_devices'))
+        return redirect(custom_url_for('list_devices'))
 
     if request.method == 'POST':
         name = request.form.get('name')
@@ -238,7 +274,7 @@ def edit_device(device_id):
 
         if not name or not device_type or not location:
             flash('Bitte füllen Sie alle Pflichtfelder aus')
-            return redirect(url_for('edit_device', device_id=device_id))
+            return redirect(custom_url_for('edit_device', device_id=device_id))
 
         # Gerät aktualisieren
         devices[device_id]['name'] = name
@@ -248,7 +284,7 @@ def edit_device(device_id):
 
         save_devices(devices)
         flash('Gerät erfolgreich aktualisiert')
-        return redirect(url_for('list_devices'))
+        return redirect(custom_url_for('list_devices'))
 
     # Anleitungen für die Auswahl laden
     manuals = [manual['name'] for manual in load_manuals()]
@@ -269,7 +305,7 @@ def delete_device(device_id):
         save_devices(devices)
         flash('Gerät erfolgreich gelöscht')
 
-    return redirect(url_for('list_devices'))
+    return redirect(custom_url_for('list_devices'))
 
 @app.route('/static/<path:filename>')
 def serve_static(filename):
@@ -309,11 +345,11 @@ def import_ha_devices():
         save_devices(current_devices)
         
         flash(f'{imported_count} Geräte aus Home Assistant importiert.')
-        return redirect(url_for('list_devices'))
+        return redirect(custom_url_for('list_devices'))
     
     except Exception as e:
         flash(f'Fehler beim Importieren der Geräte: {str(e)}')
-        return redirect(url_for('list_devices'))
+        return redirect(custom_url_for('list_devices'))
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', debug=True)
+    app.run(host='0.0.0.0', port=8099, debug=True)
