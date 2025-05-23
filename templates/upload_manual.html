@@ -1,17 +1,10 @@
-
+<!-- Datei: templates/upload_manual.html -->
 <!DOCTYPE html>
 <html>
 <head>
     <title>Anleitung hochladen</title>
     <link rel="stylesheet" href="{{ static_url('styles.css') }}">
-    <script>
-        // Sicherstellen, dass das Formular die aktuelle URL (mit korrektem Protokoll) verwendet
-        document.addEventListener('DOMContentLoaded', function() {
-            var form = document.getElementById('uploadForm');
-            // Setzt die aktuelle URL als Formular-Aktion
-            form.action = window.location.href;
-        });
-    </script>
+    <script src="{{ static_url('app.js') }}"></script>
 </head>
 <body>
 <div class="container">
@@ -31,7 +24,7 @@
     {% endwith %}
 
     <div class="content">
-        <form id="uploadForm" method="post" enctype="multipart/form-data" class="form">
+        <form method="post" action="{{ url_for('upload_manual') }}" enctype="multipart/form-data" class="form">
             <div class="form-group">
                 <label for="file">PDF-Datei auswählen</label>
                 <input type="file" id="file" name="file" accept=".pdf" required>

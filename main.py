@@ -25,11 +25,16 @@ def fix_ingress():
     ingress_path = request.headers.get('X-Ingress-Path', '')
     x_forwarded_proto = request.headers.get('X-Forwarded-Proto', '')
     x_forwarded_host = request.headers.get('X-Forwarded-Host', '')
-    
+
     # Debug-Informationen
-    print(f"Request headers: Ingress-Path={ingress_path}, Host={request.host}, " 
+    print(f"Request headers: Ingress-Path={ingress_path}, Host={request.host}, "
           f"X-Forwarded-Host={x_forwarded_host}, X-Forwarded-Proto={x_forwarded_proto}")
     print(f"Request: path={request.path}, full_path={request.full_path}")
+
+    # HTTPS-Schema erzwingen, wenn der Forwarded-Proto Header HTTPS anzeigt
+    if x_forwarded_proto == 'https':
+        request.environ['wsgi.url_scheme'] = 'https'
+        print("HTTPS-Schema erzwungen basierend auf X-Forwarded-Proto")
 
     if ingress_path:
         # WSGI-Umgebung anpassen
