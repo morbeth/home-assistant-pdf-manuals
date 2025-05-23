@@ -29,6 +29,7 @@ class HomeAssistantAPI:
             print("Erstelle Geräteliste aus States")
             devices = []
             seen_devices = set()  # Um Duplikate zu vermeiden
+            extracted_areas = set()  # Sammeln aller Standorte für spätere Verwendung
 
             # Definiere die interessanten Domains
             device_domains = ['light', 'switch', 'climate', 'media_player', 'camera', 
@@ -55,26 +56,32 @@ class HomeAssistantAPI:
                     area = 'Unbekannt'
                     if ' ' in friendly_name:
                         possible_area = friendly_name.split(' ')[0]
-                        if possible_area in ['Wohnzimmer', 'Küche', 'Schlafzimmer', 'Badezimmer', 
-                                           'Flur', 'Büro']:
+                        # Umfassendere Liste von möglichen Standorten
+                        if len(possible_area) > 2 and possible_area not in ['Der', 'Die', 'Das', 'Ein', 'Eine']:
                             area = possible_area
-                    
-                    # Erstelle das Gerät
-                    device = {
-                        'id': device_id,
-                        'name': friendly_name,
-                        'manufacturer': attrs.get('manufacturer', 'Unbekannt'),
-                        'model': attrs.get('model', 'Unbekannt'),
-                        'type': self.get_device_type(entity_id),
-                        'location': area
-                    }
-                    devices.append(device)
-            
-            print("Gefundene Geräte: {}".format(len(devices)))
-            return devices
-        except Exception as e:
-            print("Fehler beim Abrufen der Geräte: {}".format(e))
-            return []
+                            # Füge den extrahierten Bereich zur Liste hinzu
+                            extracted_areas.add(area)
+                
+                # Erstelle das Gerät
+                device = {
+                    'id': device_id,
+                    'name': friendly_name,
+                    'manufacturer': attrs.get('manufacturer', 'Unbekannt'),
+                    'model': attrs.get('model', 'Unbekannt'),
+                    'type': self.get_device_type(entity_id),
+                    'location': area
+                }
+                devices.append(device)
+        
+        # Speichere die extrahierten Bereiche für die spätere Verwendung
+        self.extracted_areas = extracted_areas
+        
+        print("Gefundene Geräte: {}".format(len(devices)))
+        print("Extrahierte Bereiche: {}".format(len(extracted_areas)))
+        return devices
+    except Exception as e:
+        print("Fehler beim Abrufen der Geräte: {}".format(e))
+        return []
     
     def get_device_type(self, entity_id):
         """Bestimmt den Typ des Geräts anhand der Entity-ID"""
@@ -94,7 +101,7 @@ class HomeAssistantAPI:
     def get_areas(self):
         """Holt alle Bereiche/Räume aus Home Assistant oder gibt Standard-Bereiche zurück"""
         try:
-            # Da die Area-Registry nicht verfügbar ist, geben wir Standard-Bereiche zurück
+            # Standard-Bereiche definieren
             standard_areas = [
                 {'id': 'default_living_room', 'name': 'Wohnzimmer'},
                 {'id': 'default_kitchen', 'name': 'Küche'},
@@ -105,34 +112,51 @@ class HomeAssistantAPI:
                 {'id': 'default_other', 'name': 'Sonstiger Ort'}
             ]
             
-            # Versuchen, benutzerdefinierte Bereiche aus States zu extrahieren
-            try:
-                response = requests.get("{}/states".format(self.base_url), headers=self.headers)
-                if response.status_code == 200:
-                    all_states = response.json()
-                    
-                    # Extrahiere einzigartige Bereiche aus Gerätenamen
-                    extracted_areas = set()
-                    for state in all_states:
-                        attrs = state.get('attributes', {})
-                        if 'friendly_name' in attrs:
-                            name = attrs['friendly_name']
-                            if ' ' in name:
-                                possible_area = name.split(' ')[0]
-                                if len(possible_area) > 3 and possible_area not in ['Der', 'Die', 'Das']:
-                                    extracted_areas.add(possible_area)
-                    
-                    # Füge extrahierte Bereiche zur Standardliste hinzu
-                    for area_name in extracted_areas:
+            # Füge extrahierte Bereiche hinzu, wenn wir sie bereits haben
+            if hasattr(self, 'extracted_areas') and self.extracted_areas:
+                for area_name in self.extracted_areas:
+                    # Prüfen, ob der Bereich bereits in der Standardliste ist
+                    if not any(area['name'] == area_name for area in standard_areas):
                         area_id = "extracted_{}".format(area_name.lower().replace(' ', '_'))
                         standard_areas.append({
                             'id': area_id,
                             'name': area_name
                         })
-            except:
-                # Bei Fehler einfach Standard-Bereiche verwenden
-                pass
-                
+            else:
+                # Versuchen, Bereiche aus States zu extrahieren, falls noch nicht geschehen
+                try:
+                    response = requests.get("{}/states".format(self.base_url), headers=self.headers)
+                    if response.status_code == 200:
+                        all_states = response.json()
+                        
+                        # Extrahiere einzigartige Bereiche aus Gerätenamen
+                        extracted_areas = set()
+                        for state in all_states:
+                            attrs = state.get('attributes', {})
+                            if 'friendly_name' in attrs:
+                                name = attrs['friendly_name']
+                                if ' ' in name:
+                                    possible_area = name.split(' ')[0]
+                                    if len(possible_area) > 2 and possible_area not in ['Der', 'Die', 'Das', 'Ein', 'Eine']:
+                                        extracted_areas.add(possible_area)
+                    
+                    # Speichere für zukünftige Verwendung
+                    self.extracted_areas = extracted_areas
+                    
+                    # Füge extrahierte Bereiche zur Standardliste hinzu
+                    for area_name in extracted_areas:
+                        # Prüfen, ob der Bereich bereits in der Standardliste ist
+                        if not any(area['name'] == area_name for area in standard_areas):
+                            area_id = "extracted_{}".format(area_name.lower().replace(' ', '_'))
+                            standard_areas.append({
+                                'id': area_id,
+                                'name': area_name
+                            })
+                except Exception as e:
+                    print("Fehler beim Extrahieren der Bereiche aus States: {}".format(e))
+                    # Bei Fehler einfach Standard-Bereiche verwenden
+                    pass
+            
             return sorted(standard_areas, key=lambda x: x['name'])
         except Exception as e:
             print("Fehler beim Abrufen der Bereiche: {}".format(e))
