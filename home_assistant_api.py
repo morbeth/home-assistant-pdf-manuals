@@ -1,26 +1,61 @@
 import requests
 import os
 import json
+import time
 
 class HomeAssistantAPI:
     def __init__(self):
         # In Home Assistant Add-ons wird ein Supervisor-Token automatisch bereitgestellt
         self.token = os.environ.get('SUPERVISOR_TOKEN')
+        print(f"Supervisor-Token vorhanden: {self.token is not None}")
         
-        # Basis-URLs für verschiedene API-Endpunkte
-        self.base_url = "http://supervisor/core/api"
+        # Debug: Teste verschiedene API-Endpunkte, um herauszufinden, welche funktionieren
+        self.base_url = self.find_working_api()
         
         self.headers = {
             "Authorization": f"Bearer {self.token}",
             "Content-Type": "application/json"
         }
+        print(f"Verwende API Base URL: {self.base_url}")
+    
+    def find_working_api(self):
+        """Teste verschiedene mögliche API-Endpunkte"""
+        test_urls = [
+            "http://supervisor/core/api",
+            "http://supervisor/api",
+            "http://homeassistant:8123/api",
+            "http://host.docker.internal:8123/api",
+            "http://172.30.32.1:8123/api",  # Typische Supervisor-IP
+            "http://192.168.1.57:8123/api"  # Deine spezifische Home Assistant IP
+        ]
+        
+        for base in test_urls:
+            # Teste einen einfachen Endpunkt (states funktioniert in den meisten Fällen)
+            url = f"{base}/states"
+            try:
+                headers = {"Authorization": f"Bearer {self.token}"}
+                print(f"Teste API-URL: {url}")
+                response = requests.get(url, headers=headers, timeout=3)
+                if response.status_code == 200:
+                    print(f"✅ API-URL funktioniert: {base}")
+                    return base
+                else:
+                    print(f"❌ API-URL nicht erreichbar (Status {response.status_code}): {base}")
+            except Exception as e:
+                print(f"❌ API-URL nicht erreichbar (Fehler: {str(e)}): {base}")
+        
+        # Fallback zur ersten URL, wenn keine funktioniert
+        print("⚠️ Keine API-URL funktioniert. Verwende Standard-URL.")
+        return "http://supervisor/core/api"
     
     def get_devices(self):
         """Holt alle Geräte aus Home Assistant"""
         try:
+            # Zuerst prüfen, ob wir die states abrufen können (grundlegende Funktionalität)
             response = requests.get(f"{self.base_url}/states", headers=self.headers)
             response.raise_for_status()
             all_states = response.json()
+            print(f"Erfolgreich {len(all_states)} States abgerufen")
             
             # Filtern Sie Entitäten, die tatsächlich Geräte sind
             devices = []
@@ -29,6 +64,29 @@ class HomeAssistantAPI:
             # Entity Registry nur einmal abrufen
             entity_registry = self.get_entity_registry()
             
+            # Versuche ein einfaches Geräte-Array zu erstellen, wenn keine Registry verfügbar ist
+            if not device_registry and not entity_registry:
+                print("Keine Registry verfügbar, erstelle einfache Geräteliste aus States")
+                devices_by_domain = {}
+                for state in all_states:
+                    entity_id = state['entity_id']
+                    domain = entity_id.split('.')[0]
+                    if domain in ['light', 'switch', 'climate', 'media_player', 'camera', 'vacuum']:
+                        friendly_name = state['attributes'].get('friendly_name', entity_id)
+                        device_key = f"{domain}_{friendly_name}"
+                        if device_key not in devices_by_domain:
+                            devices_by_domain[device_key] = {
+                                'id': entity_id,
+                                'name': friendly_name,
+                                'manufacturer': state['attributes'].get('manufacturer', 'Unbekannt'),
+                                'model': state['attributes'].get('model', 'Unbekannt'),
+                                'type': self.get_device_type(entity_id),
+                                'location': state['attributes'].get('area', 'Unbekannt')
+                            }
+                
+                return list(devices_by_domain.values())
+            
+            # Normale Verarbeitung, wenn Registry verfügbar ist
             for state in all_states:
                 entity_id = state['entity_id']
                 # Prüfen, ob die Entity zu einem Gerät gehört
@@ -36,6 +94,7 @@ class HomeAssistantAPI:
                 if device_info and device_info not in devices:
                     devices.append(device_info)
             
+            print(f"Gefundene Geräte: {len(devices)}")
             return devices
         except Exception as e:
             print(f"Fehler beim Abrufen der Geräte: {e}")
@@ -43,39 +102,49 @@ class HomeAssistantAPI:
     
     def get_device_registry(self):
         """Holt das Geräteregister aus Home Assistant"""
-        try:
-            # Versuche zuerst mit standard URL
-            response = requests.get(f"{self.base_url}/config/device_registry", headers=self.headers)
-            response.raise_for_status()
-            return response.json()
-        except Exception as e:
-            print(f"Fehler beim Abrufen des Geräteregisters: {e}")
+        endpoints = [
+            "/config/device_registry",
+            "/devices",
+            "/device_registry"
+        ]
+        
+        for endpoint in endpoints:
             try:
-                # Alternativer Endpunkt für neuere HA Versionen
-                response = requests.get(f"{self.base_url}/devices", headers=self.headers)
+                url = f"{self.base_url}{endpoint}"
+                print(f"Versuche Device Registry: {url}")
+                response = requests.get(url, headers=self.headers)
                 response.raise_for_status()
-                return response.json()
-            except Exception as e2:
-                print(f"Auch mit alternativem Endpunkt fehlgeschlagen: {e2}")
-                return []
+                data = response.json()
+                print(f"✅ Device Registry erfolgreich abgerufen über {endpoint}")
+                return data
+            except Exception as e:
+                print(f"❌ Endpunkt {endpoint} nicht erfolgreich: {e}")
+        
+        print("⚠️ Keine funktionierenden Device Registry Endpunkte gefunden")
+        return []
 
     def get_entity_registry(self):
         """Holt das Entity-Register aus Home Assistant"""
-        try:
-            # Standard Endpunkt
-            response = requests.get(f"{self.base_url}/config/entity_registry", headers=self.headers)
-            response.raise_for_status()
-            return response.json()
-        except Exception as e:
-            print(f"Fehler beim Abrufen des Entity-Registers: {e}")
+        endpoints = [
+            "/config/entity_registry",
+            "/entities",
+            "/entity_registry"
+        ]
+        
+        for endpoint in endpoints:
             try:
-                # Alternativer Endpunkt
-                response = requests.get(f"{self.base_url}/entities", headers=self.headers)
+                url = f"{self.base_url}{endpoint}"
+                print(f"Versuche Entity Registry: {url}")
+                response = requests.get(url, headers=self.headers)
                 response.raise_for_status()
-                return response.json()
-            except Exception as e2:
-                print(f"Auch mit alternativem Entity-Endpunkt fehlgeschlagen: {e2}")
-                return []
+                data = response.json()
+                print(f"✅ Entity Registry erfolgreich abgerufen über {endpoint}")
+                return data
+            except Exception as e:
+                print(f"❌ Endpunkt {endpoint} nicht erfolgreich: {e}")
+        
+        print("⚠️ Keine funktionierenden Entity Registry Endpunkte gefunden")
+        return []
 
     def find_device_for_entity(self, entity_id, device_registry, entity_registry):
         """Findet das Gerät für eine bestimmte Entity"""
@@ -122,32 +191,61 @@ class HomeAssistantAPI:
         if not area_id:
             return 'Unbekannt'
         
-        try:
-            response = requests.get(f"{self.base_url}/config/area_registry", headers=self.headers)
-            response.raise_for_status()
-            areas = response.json()
-            
-            for area in areas:
-                if area['area_id'] == area_id:
-                    return area['name']
-            
-            return 'Unbekannt'
-        except Exception as e:
-            print(f"Fehler beim Abrufen des Bereichs: {e}")
-            return 'Unbekannt'
+        endpoints = [
+            "/config/area_registry",
+            "/areas",
+            "/area_registry"
+        ]
+        
+        for endpoint in endpoints:
+            try:
+                url = f"{self.base_url}{endpoint}"
+                response = requests.get(url, headers=self.headers)
+                response.raise_for_status()
+                areas = response.json()
+                
+                for area in areas:
+                    if area['area_id'] == area_id:
+                        return area['name']
+                
+                return 'Unbekannt'
+            except Exception as e:
+                continue
+        
+        return 'Unbekannt'
 
     def get_areas(self):
         """Holt alle Bereiche/Räume aus Home Assistant"""
-        try:
-            response = requests.get(f"{self.base_url}/config/area_registry", headers=self.headers)
-            response.raise_for_status()
-            areas = response.json()
-            
-            # Bereite eine Liste der Bereiche vor
-            return sorted([{
-                'id': area['area_id'],
-                'name': area['name']
-            } for area in areas], key=lambda x: x['name'])
-        except Exception as e:
-            print(f"Fehler beim Abrufen der Bereiche: {e}")
-            return []
+        endpoints = [
+            "/config/area_registry",
+            "/areas",
+            "/area_registry"
+        ]
+        
+        for endpoint in endpoints:
+            try:
+                url = f"{self.base_url}{endpoint}"
+                print(f"Versuche Areas: {url}")
+                response = requests.get(url, headers=self.headers)
+                response.raise_for_status()
+                areas = response.json()
+                
+                result = sorted([{
+                    'id': area['area_id'],
+                    'name': area['name']
+                } for area in areas], key=lambda x: x['name'])
+                
+                print(f"✅ Areas erfolgreich abgerufen über {endpoint}: {len(result)} Bereiche gefunden")
+                return result
+            except Exception as e:
+                print(f"❌ Endpunkt {endpoint} für Areas nicht erfolgreich: {e}")
+        
+        print("⚠️ Keine Areas gefunden, verwende Standard-Bereiche")
+        # Standard-Bereiche als Fallback
+        return [
+            {'id': 'default_living_room', 'name': 'Wohnzimmer'},
+            {'id': 'default_kitchen', 'name': 'Küche'},
+            {'id': 'default_bedroom', 'name': 'Schlafzimmer'},
+            {'id': 'default_bathroom', 'name': 'Badezimmer'},
+            {'id': 'default_office', 'name': 'Büro'}
+        ]
