@@ -29,14 +29,15 @@ def fix_ingress():
     # Debug-Informationen
     print(f"Request headers: Ingress-Path={ingress_path}, Host={request.host}, " 
           f"X-Forwarded-Host={x_forwarded_host}, X-Forwarded-Proto={x_forwarded_proto}")
-    
+    print(f"Request: path={request.path}, full_path={request.full_path}")
+
     if ingress_path:
         # WSGI-Umgebung anpassen
         request.environ['SCRIPT_NAME'] = ingress_path
         path_info = request.environ['PATH_INFO']
         if path_info.startswith(ingress_path):
             request.environ['PATH_INFO'] = path_info[len(ingress_path):]
-        
+
         print(f"Ingress aktiviert: Pfad={ingress_path}, PATH_INFO={request.environ['PATH_INFO']}")
 
 # Nach der fix_ingress-Funktion hinzufügen
@@ -47,23 +48,23 @@ def get_base_url():
     if ingress_path:
         print(f"Verwende Ingress-Basis-URL: {ingress_path}")
         return ingress_path
-    
+
     # SCRIPT_NAME aus der WSGI-Umgebung prüfen
     script_name = request.environ.get('SCRIPT_NAME', '')
     if script_name:
         print(f"Verwende SCRIPT_NAME-Basis-URL: {script_name}")
         return script_name
-    
+
     # Wenn wir hinter einem Proxy sind, verwende X-Forwarded-* Header
     x_forwarded_host = request.headers.get('X-Forwarded-Host', '')
     x_forwarded_proto = request.headers.get('X-Forwarded-Proto', '')
-    
+
     if x_forwarded_host:
         proto = x_forwarded_proto if x_forwarded_proto else 'http'
         base_url = f"{proto}://{x_forwarded_host}"
         print(f"Verwende X-Forwarded-Basis-URL: {base_url}")
         return ""  # Leere Basis-URL, da die vollständige URL von Flask generiert wird
-    
+
     # Direkte Anfrage (kein Proxy/Ingress)
     print("Keine Proxy/Ingress-Header gefunden. Verwende leere Basis-URL.")
     return ""
@@ -79,19 +80,19 @@ def custom_url_for(endpoint, **values):
     """Fügt die Basis-URL zu den generierten URLs hinzu"""
     original_url = url_for(endpoint, **values)
     base_url = get_base_url()
-    
+
     # Vermeide doppelte Base-URLs
     if base_url and not original_url.startswith(base_url):
         # Wenn die Basis-URL noch nicht im Original enthalten ist
-        
+
         # Wenn das original_url mit /static beginnt, stellen wir sicher, dass wir
         # nicht versehentlich einen doppelten Basis-URL-Pfad erzeugen
         if original_url.startswith('/'):
             original_url = original_url[1:]  # Entferne führenden Slash
-            
+
         # Log für Debugging
         print(f"URL-Generierung: original={original_url}, base_url={base_url}")
-        
+
         # Stellen Sie sicher, dass die URL korrekt ist (keine doppelten Slashes)
         if base_url.endswith('/') and original_url.startswith('/'):
             original_url = original_url[1:]
@@ -99,30 +100,36 @@ def custom_url_for(endpoint, **values):
             result = f"{base_url}/{original_url}"
             print(f"URL umgeschrieben (einfach): {original_url} -> {result}")
             return result
-        
+
         # Verwende urljoin für komplexere Fälle
         result = urljoin(base_url + '/', original_url)
         print(f"URL umgeschrieben (urljoin): {original_url} -> {result}")
         return result
-    
+
     return original_url
 
 # Ersetze die globale url_for-Funktion
 app.jinja_env.globals['url_for'] = custom_url_for
 
-# Funktion für statische Dateien korrigieren
-@app.route('/static/<path:filename>')
-def serve_static(filename):
-    """Spezielle Route für statische Dateien mit korrektem MIME-Typ"""
-    response = send_from_directory('static', filename)
-    
-    # Setze den MIME-Typ explizit für CSS-Dateien
-    if filename.endswith('.css'):
-        response.headers['Content-Type'] = 'text/css'
-    elif filename.endswith('.js'):
-        response.headers['Content-Type'] = 'application/javascript'
-    
-    return response
+# Hilfsfunktion für statische Dateien im Template
+@app.context_processor
+def utility_processor():
+    def static_url(filename):
+        """Generiert URLs für statische Dateien mit einer einzigen Basis-URL"""
+        base_url = get_base_url()
+        # Einfacher und direkter Ansatz
+        if base_url:
+            # Stellen Sie sicher, dass die URL korrekt formatiert ist
+            if base_url.endswith('/'):
+                url = f"{base_url}static/{filename}"
+            else:
+                url = f"{base_url}/static/{filename}"
+        else:
+            url = f"/static/{filename}"
+
+        print(f"Static URL für {filename}: {url}")
+        return url
+    return dict(static_url=static_url)
 
 # Jinja2 Filter für Datumsformatierung hinzufügen
 @app.template_filter('strftime')
@@ -139,33 +146,303 @@ def _slice(iterable, start, end=None, step=None):
         end = len(iterable)
     return iterable[start:end:step]
 
-# Hilfsfunktion für statische Dateien im Template
-@app.context_processor
-def utility_processor():
-    def static_url(filename):
-        """Generiert URLs für statische Dateien mit einer einzigen Basis-URL"""
-        url = url_for('serve_static', filename=filename)
-        # Entferne mögliche doppelte Basis-URLs
-        base_url = get_base_url()
-        if base_url:
-            # Überprüfe, ob die URL bereits die Basis enthält
-            base_pattern = base_url
-            if not base_pattern.startswith('/'):
-                base_pattern = '/' + base_pattern
-            if url.count(base_pattern) > 1:
-                # Entferne alle Vorkommen außer dem ersten
-                parts = url.split(base_pattern)
-                if len(parts) > 1:
-                    url = base_pattern.join([parts[0], ''.join(parts[1:])])
-        return url
-    return dict(static_url=static_url)
-
 # Pfade für die Datenspeicherung
 UPLOAD_FOLDER = '/data/manuals'
 DEVICES_FILE = '/data/devices/devices.json'
 MANUAL_MAPPING_FILE = '/data/devices/manual_mapping.json'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(os.path.dirname(DEVICES_FILE), exist_ok=True)
+
+# Stelle sicher, dass der static-Ordner existiert
+if not os.path.isdir('static'):
+    os.makedirs('static', exist_ok=True)
+    print("Static-Verzeichnis erstellt")
+
+# Stelle sicher, dass die CSS-Datei existiert
+css_path = os.path.join('static', 'styles.css')
+if not os.path.isfile(css_path):
+    with open(css_path, 'w') as f:
+        f.write("""
+/* Basis-Stil */
+body {
+    font-family: Arial, sans-serif;
+    line-height: 1.6;
+    margin: 0;
+    padding: 0;
+    background-color: #f4f4f4;
+    color: #333;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1rem;
+}
+
+h1, h2, h3 {
+    color: #2c3e50;
+}
+
+/* Navigation */
+.nav {
+    display: flex;
+    background-color: #34495e;
+    padding: 0.5rem 1rem;
+    margin-bottom: 1.5rem;
+    border-radius: 4px;
+}
+
+.nav a {
+    color: white;
+    text-decoration: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    transition: background-color 0.3s;
+}
+
+.nav a:hover {
+    background-color: #2c3e50;
+}
+
+.nav a.active {
+    background-color: #2980b9;
+}
+
+/* Meldungen */
+.messages {
+    margin-bottom: 1.5rem;
+}
+
+.message {
+    background-color: #3498db;
+    color: white;
+    padding: 0.8rem 1rem;
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+}
+
+/* Tabellen */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: white;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.data-table th, .data-table td {
+    padding: 0.8rem;
+    border-bottom: 1px solid #e0e0e0;
+    text-align: left;
+}
+
+.data-table th {
+    background-color: #2980b9;
+    color: white;
+}
+
+.data-table tr:hover {
+    background-color: #f9f9f9;
+}
+
+.data-table .empty {
+    color: #999;
+    font-style: italic;
+}
+
+.data-table .actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* Buttons & Aktionen */
+.action-btn {
+    display: inline-block;
+    padding: 0.3rem 0.7rem;
+    border-radius: 4px;
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: background-color 0.3s;
+    color: white;
+}
+
+.action-btn.view {
+    background-color: #2980b9;
+}
+
+.action-btn.edit {
+    background-color: #f39c12;
+}
+
+.action-btn.delete {
+    background-color: #e74c3c;
+}
+
+.action-btn:hover {
+    opacity: 0.9;
+}
+
+/* Dashboard */
+.dashboard {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+}
+
+@media (min-width: 768px) {
+    .dashboard {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 1rem;
+    grid-column: 1 / -1;
+}
+
+.stat-box {
+    background-color: white;
+    padding: 1rem;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+    text-align: center;
+}
+
+.stat-box h3 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1rem;
+    color: #7f8c8d;
+}
+
+.stat-box .count {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #2980b9;
+}
+
+.recent {
+    background-color: white;
+    padding: 1rem;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.recent h2 {
+    margin-top: 0;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 0.5rem;
+    font-size: 1.2rem;
+}
+
+.list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.list li {
+    padding: 0.8rem 0;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    flex-direction: column;
+}
+
+.list li:last-child {
+    border-bottom: none;
+}
+
+.list .name {
+    font-weight: bold;
+    margin-bottom: 0.3rem;
+}
+
+.list .info {
+    color: #7f8c8d;
+    font-size: 0.9rem;
+    margin-bottom: 0.3rem;
+}
+
+.list .action {
+    color: #2980b9;
+    text-decoration: none;
+    font-size: 0.9rem;
+    margin-top: 0.3rem;
+}
+
+.list .empty {
+    color: #999;
+    font-style: italic;
+    text-align: center;
+    padding: 1.5rem 0;
+}
+
+/* Formulare */
+.form {
+    background-color: white;
+    padding: 1.5rem;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: bold;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1rem;
+}
+
+.form-actions {
+    margin-top: 1.5rem;
+}
+
+.button {
+    padding: 0.7rem 1.5rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: background-color 0.3s;
+}
+
+.button.primary {
+    background-color: #2980b9;
+    color: white;
+}
+
+.button.secondary {
+    background-color: #95a5a6;
+    color: white;
+}
+
+.button:hover {
+    opacity: 0.9;
+}
+
+/* Content */
+.content {
+    background-color: white;
+    padding: 1.5rem;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+        """)
+    print("Standard CSS-Datei erstellt")
 
 # Home Assistant API initialisieren
 ha_api = HomeAssistantAPI()
@@ -221,6 +498,26 @@ def load_manuals():
                 'timestamp': timestamp
             })
     return sorted(manuals, key=lambda x: x['timestamp'])
+
+# Direkter Zugriff auf statische Dateien
+@app.route('/static/<path:filename>')
+def serve_static(filename):
+    """Spezielle Route für statische Dateien mit korrektem MIME-Typ"""
+    print(f"Direkter Zugriff auf statische Datei: {filename}")
+
+    try:
+        response = send_from_directory('static', filename)
+
+        # Setze den MIME-Typ explizit für CSS-Dateien
+        if filename.endswith('.css'):
+            response.headers['Content-Type'] = 'text/css'
+        elif filename.endswith('.js'):
+            response.headers['Content-Type'] = 'application/javascript'
+
+        return response
+    except Exception as e:
+        print(f"Fehler beim Zugriff auf statische Datei {filename}: {e}")
+        return f"Datei {filename} nicht gefunden", 404
 
 # Statusendpunkt für Healthchecks
 @app.route('/healthcheck')
