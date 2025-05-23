@@ -1,9 +1,19 @@
-
 {% macro nav_main() %}
 <nav class="main-nav">
-    <a href="{{ base_url }}{{ url_for('index') }}" class="nav-item {% if request.endpoint == 'index' %}active{% endif %}">Übersicht</a>
-    <a href="{{ base_url }}{{ url_for('list_manuals') }}" class="nav-item {% if request.endpoint == 'list_manuals' %}active{% endif %}">Anleitungen</a>
-    <a href="{{ base_url }}{{ url_for('list_devices') }}" class="nav-item {% if request.endpoint == 'list_devices' %}active{% endif %}">Geräte</a>
+    <div class="nav-logo">
+        <span class="logo-text">PDF-Manager</span>
+    </div>
+    <div class="nav-links">
+        <a href="{{ base_url }}{{ url_for('index') }}" class="nav-item {% if request.endpoint == 'index' %}active{% endif %}">
+            <i class="nav-icon home-icon"></i>Übersicht
+        </a>
+        <a href="{{ base_url }}{{ url_for('list_manuals') }}" class="nav-item {% if request.endpoint == 'list_manuals' %}active{% endif %}">
+            <i class="nav-icon manual-icon"></i>Anleitungen
+        </a>
+        <a href="{{ base_url }}{{ url_for('list_devices') }}" class="nav-item {% if request.endpoint == 'list_devices' %}active{% endif %}">
+            <i class="nav-icon device-icon"></i>Geräte
+        </a>
+    </div>
 
     <div class="nav-actions">
         <a href="{{ base_url }}{{ url_for('upload_manual') }}" class="button">Anleitung hochladen</a>
@@ -14,6 +24,9 @@
 
 {% macro nav_manuals() %}
 <nav class="sub-nav">
+    <a href="{{ base_url }}{{ url_for('index') }}" class="nav-item">
+        <i class="nav-icon back-icon"></i>Übersicht
+    </a>
     <a href="{{ base_url }}{{ url_for('list_manuals') }}" class="nav-item">Alle Anleitungen</a>
     <a href="{{ base_url }}{{ url_for('upload_manual') }}" class="nav-item">Hochladen</a>
 </nav>
@@ -21,12 +34,18 @@
 
 {% macro nav_upload_manual() %}
 <nav class="sub-nav">
+    <a href="{{ base_url }}{{ url_for('index') }}" class="nav-item">
+        <i class="nav-icon back-icon"></i>Übersicht
+    </a>
     <a href="{{ base_url }}{{ url_for('list_manuals') }}" class="nav-item">Zurück zur Anleitungsübersicht</a>
 </nav>
 {% endmacro %}
 
 {% macro nav_devices() %}
 <nav class="sub-nav">
+    <a href="{{ base_url }}{{ url_for('index') }}" class="nav-item">
+        <i class="nav-icon back-icon"></i>Übersicht
+    </a>
     <a href="{{ base_url }}{{ url_for('list_devices') }}" class="nav-item">Alle Geräte</a>
     <a href="{{ base_url }}{{ url_for('add_device') }}" class="nav-item">Gerät hinzufügen</a>
     <a href="{{ base_url }}{{ url_for('import_ha_devices') }}" class="nav-item">Aus Home Assistant importieren</a>
@@ -35,6 +54,9 @@
 
 {% macro nav_add_edit_device() %}
 <nav class="sub-nav">
+    <a href="{{ base_url }}{{ url_for('index') }}" class="nav-item">
+        <i class="nav-icon back-icon"></i>Übersicht
+    </a>
     <a href="{{ base_url }}{{ url_for('list_devices') }}" class="nav-item">Zurück zur Geräteübersicht</a>
     <a href="{{ base_url }}{{ url_for('list_manuals') }}" class="nav-item">Anleitungen anzeigen</a>
 </nav>

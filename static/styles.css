@@ -264,3 +264,164 @@ h2 {
     padding-left: 15px;
     border-left: 3px solid #ddd;
 }
+
+/* Navigation Styles */
+.main-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background-color: #2c3e50;
+    border-radius: 8px;
+    padding: 12px 20px;
+    margin-bottom: 25px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.nav-logo {
+    display: flex;
+    align-items: center;
+}
+
+.logo-text {
+    color: white;
+    font-size: 20px;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+}
+
+.nav-links {
+    display: flex;
+    gap: 8px;
+    flex-grow: 1;
+    margin-left: 30px;
+}
+
+.main-nav .nav-item {
+    color: rgba(255, 255, 255, 0.85);
+    text-decoration: none;
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+}
+
+.main-nav .nav-item:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.main-nav .nav-item.active {
+    background-color: #3498db;
+    color: white;
+}
+
+.nav-icon {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    margin-right: 8px;
+    position: relative;
+}
+
+/* Icon Styles using pseudo-elements */
+.home-icon::before {
+    content: "⌂";
+    font-size: 16px;
+}
+
+.manual-icon::before {
+    content: "📄";
+    font-size: 16px;
+}
+
+.device-icon::before {
+    content: "📱";
+    font-size: 16px;
+}
+
+.back-icon::before {
+    content: "←";
+    font-size: 16px;
+}
+
+/* Sub Navigation */
+.sub-nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background-color: #f8f9fa;
+    border-radius: 6px;
+    padding: 10px 16px;
+    margin-bottom: 25px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    flex-wrap: wrap;
+}
+
+.sub-nav .nav-item {
+    color: #2c3e50;
+    text-decoration: none;
+    padding: 8px 14px;
+    border-radius: 5px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+}
+
+.sub-nav .nav-item:hover {
+    background-color: #e9ecef;
+}
+
+.sub-nav .nav-item:first-child {
+    background-color: #3498db;
+    color: white;
+}
+
+.sub-nav .nav-item:first-child:hover {
+    background-color: #2980b9;
+}
+
+/* Button Styles im Navigationsbereich */
+.nav-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.nav-actions .button {
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-weight: 500;
+    border: none;
+    transition: all 0.2s ease;
+}
+
+.nav-actions .button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Responsive Design für Mobile */
+@media (max-width: 768px) {
+    .main-nav {
+        flex-direction: column;
+        padding: 16px;
+    }
+
+    .nav-links {
+        margin: 15px 0;
+        width: 100%;
+        justify-content: center;
+    }
+
+    .nav-actions {
+        width: 100%;
+        justify-content: center;
+        margin-top: 10px;
+    }
+
+    .sub-nav {
+        justify-content: center;
+    }
+}
