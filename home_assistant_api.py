@@ -61,27 +61,27 @@ class HomeAssistantAPI:
                             area = possible_area
                             # Füge den extrahierten Bereich zur Liste hinzu
                             extracted_areas.add(area)
-                
-                # Erstelle das Gerät
-                device = {
-                    'id': device_id,
-                    'name': friendly_name,
-                    'manufacturer': attrs.get('manufacturer', 'Unbekannt'),
-                    'model': attrs.get('model', 'Unbekannt'),
-                    'type': self.get_device_type(entity_id),
-                    'location': area
-                }
-                devices.append(device)
-        
-        # Speichere die extrahierten Bereiche für die spätere Verwendung
-        self.extracted_areas = extracted_areas
-        
-        print("Gefundene Geräte: {}".format(len(devices)))
-        print("Extrahierte Bereiche: {}".format(len(extracted_areas)))
-        return devices
-    except Exception as e:
-        print("Fehler beim Abrufen der Geräte: {}".format(e))
-        return []
+                    
+                    # Erstelle das Gerät
+                    device = {
+                        'id': device_id,
+                        'name': friendly_name,
+                        'manufacturer': attrs.get('manufacturer', 'Unbekannt'),
+                        'model': attrs.get('model', 'Unbekannt'),
+                        'type': self.get_device_type(entity_id),
+                        'location': area
+                    }
+                    devices.append(device)
+            
+            # Speichere die extrahierten Bereiche für die spätere Verwendung
+            self.extracted_areas = extracted_areas
+            
+            print("Gefundene Geräte: {}".format(len(devices)))
+            print("Extrahierte Bereiche: {}".format(len(extracted_areas)))
+            return devices
+        except Exception as e:
+            print("Fehler beim Abrufen der Geräte: {}".format(e))
+            return []
     
     def get_device_type(self, entity_id):
         """Bestimmt den Typ des Geräts anhand der Entity-ID"""
@@ -139,19 +139,19 @@ class HomeAssistantAPI:
                                     possible_area = name.split(' ')[0]
                                     if len(possible_area) > 2 and possible_area not in ['Der', 'Die', 'Das', 'Ein', 'Eine']:
                                         extracted_areas.add(possible_area)
-                    
-                    # Speichere für zukünftige Verwendung
-                    self.extracted_areas = extracted_areas
-                    
-                    # Füge extrahierte Bereiche zur Standardliste hinzu
-                    for area_name in extracted_areas:
-                        # Prüfen, ob der Bereich bereits in der Standardliste ist
-                        if not any(area['name'] == area_name for area in standard_areas):
-                            area_id = "extracted_{}".format(area_name.lower().replace(' ', '_'))
-                            standard_areas.append({
-                                'id': area_id,
-                                'name': area_name
-                            })
+                        
+                        # Speichere für zukünftige Verwendung
+                        self.extracted_areas = extracted_areas
+                        
+                        # Füge extrahierte Bereiche zur Standardliste hinzu
+                        for area_name in extracted_areas:
+                            # Prüfen, ob der Bereich bereits in der Standardliste ist
+                            if not any(area['name'] == area_name for area in standard_areas):
+                                area_id = "extracted_{}".format(area_name.lower().replace(' ', '_'))
+                                standard_areas.append({
+                                    'id': area_id,
+                                    'name': area_name
+                                })
                 except Exception as e:
                     print("Fehler beim Extrahieren der Bereiche aus States: {}".format(e))
                     # Bei Fehler einfach Standard-Bereiche verwenden
