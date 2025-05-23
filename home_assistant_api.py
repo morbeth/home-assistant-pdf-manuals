@@ -6,7 +6,10 @@ class HomeAssistantAPI:
     def __init__(self):
         # In Home Assistant Add-ons wird ein Supervisor-Token automatisch bereitgestellt
         self.token = os.environ.get('SUPERVISOR_TOKEN')
+        
+        # Basis-URLs für verschiedene API-Endpunkte
         self.base_url = "http://supervisor/core/api"
+        
         self.headers = {
             "Authorization": f"Bearer {self.token}",
             "Content-Type": "application/json"
@@ -41,31 +44,38 @@ class HomeAssistantAPI:
     def get_device_registry(self):
         """Holt das Geräteregister aus Home Assistant"""
         try:
-            # Neuer API-Endpunkt in neueren Home Assistant Versionen
-            response = requests.get(f"{self.ha_base_url}/config/device_registry", headers=self.headers)
+            # Versuche zuerst mit standard URL
+            response = requests.get(f"{self.base_url}/config/device_registry", headers=self.headers)
             response.raise_for_status()
             return response.json()
         except Exception as e:
             print(f"Fehler beim Abrufen des Geräteregisters: {e}")
             try:
-                # Fallback für ältere Versionen
-                response = requests.get(f"{self.ha_base_url}/devices", headers=self.headers)
+                # Alternativer Endpunkt für neuere HA Versionen
+                response = requests.get(f"{self.base_url}/devices", headers=self.headers)
                 response.raise_for_status()
                 return response.json()
             except Exception as e2:
                 print(f"Auch mit alternativem Endpunkt fehlgeschlagen: {e2}")
                 return []
 
-
     def get_entity_registry(self):
         """Holt das Entity-Register aus Home Assistant"""
         try:
+            # Standard Endpunkt
             response = requests.get(f"{self.base_url}/config/entity_registry", headers=self.headers)
             response.raise_for_status()
             return response.json()
         except Exception as e:
             print(f"Fehler beim Abrufen des Entity-Registers: {e}")
-            return []
+            try:
+                # Alternativer Endpunkt
+                response = requests.get(f"{self.base_url}/entities", headers=self.headers)
+                response.raise_for_status()
+                return response.json()
+            except Exception as e2:
+                print(f"Auch mit alternativem Entity-Endpunkt fehlgeschlagen: {e2}")
+                return []
 
     def find_device_for_entity(self, entity_id, device_registry, entity_registry):
         """Findet das Gerät für eine bestimmte Entity"""
