@@ -57,48 +57,75 @@ class HomeAssistantAPI:
             all_states = response.json()
             print(f"Erfolgreich {len(all_states)} States abgerufen")
             
-            # Filtern Sie Entitäten, die tatsächlich Geräte sind
+            # Da keine Registry verfügbar ist, erstelle die Geräteliste direkt aus den States
+            print("Erstelle Geräteliste aus States")
             devices = []
-            device_registry = self.get_device_registry()
+            seen_devices = set()  # Um Duplikate zu vermeiden
+
+            # Definiere die interessanten Domains
+            device_domains = ['light', 'switch', 'climate', 'media_player', 'camera', 
+                              'vacuum', 'cover', 'fan', 'humidifier', 'water_heater']
             
-            # Entity Registry nur einmal abrufen
-            entity_registry = self.get_entity_registry()
-            
-            # Versuche ein einfaches Geräte-Array zu erstellen, wenn keine Registry verfügbar ist
-            if not device_registry and not entity_registry:
-                print("Keine Registry verfügbar, erstelle einfache Geräteliste aus States")
-                devices_by_domain = {}
-                for state in all_states:
+            # Gruppiere zuerst nach Areas, um eine bessere Zuordnung zu erhalten
+            areas = {}
+            for state in all_states:
+                if state['entity_id'].startswith('zone.') or state['entity_id'].startswith('area.'):
                     entity_id = state['entity_id']
-                    domain = entity_id.split('.')[0]
-                    if domain in ['light', 'switch', 'climate', 'media_player', 'camera', 'vacuum']:
-                        friendly_name = state['attributes'].get('friendly_name', entity_id)
-                        device_key = f"{domain}_{friendly_name}"
-                        if device_key not in devices_by_domain:
-                            devices_by_domain[device_key] = {
-                                'id': entity_id,
-                                'name': friendly_name,
-                                'manufacturer': state['attributes'].get('manufacturer', 'Unbekannt'),
-                                'model': state['attributes'].get('model', 'Unbekannt'),
-                                'type': self.get_device_type(entity_id),
-                                'location': state['attributes'].get('area', 'Unbekannt')
-                            }
-                
-                return list(devices_by_domain.values())
+                    friendly_name = state['attributes'].get('friendly_name', entity_id.split('.')[1])
+                    areas[entity_id] = friendly_name
             
-            # Normale Verarbeitung, wenn Registry verfügbar ist
+            # Wenn keine Areas gefunden wurden, erstelle Standard-Areas
+            if not areas:
+                areas = {
+                    'area.wohnzimmer': 'Wohnzimmer',
+                    'area.kueche': 'Küche',
+                    'area.schlafzimmer': 'Schlafzimmer',
+                    'area.badezimmer': 'Badezimmer'
+                }
+            
+            # Jetzt die Geräte-Entitäten verarbeiten
             for state in all_states:
                 entity_id = state['entity_id']
-                # Prüfen, ob die Entity zu einem Gerät gehört
-                device_info = self.find_device_for_entity(entity_id, device_registry, entity_registry)
-                if device_info and device_info not in devices:
-                    devices.append(device_info)
-            
-            print(f"Gefundene Geräte: {len(devices)}")
-            return devices
-        except Exception as e:
-            print(f"Fehler beim Abrufen der Geräte: {e}")
-            return []
+                domain = entity_id.split('.')[0]
+                
+                # Nur relevante Geräte-Domains verarbeiten
+                if domain in device_domains:
+                    friendly_name = state['attributes'].get('friendly_name', entity_id)
+                    device_id = state['attributes'].get('device_id', entity_id)
+                    
+                    # Duplikate vermeiden
+                    if device_id in seen_devices:
+                        continue
+                    seen_devices.add(device_id)
+                    
+                    # Area bestimmen
+                    area = 'Unbekannt'
+                    area_id = state['attributes'].get('area_id')
+                    if area_id:
+                        area = areas.get(f"area.{area_id}", 'Unbekannt')
+                    
+                    # Für einige Gerätetypen, versuche die Area aus dem Namen zu erraten
+                    if area == 'Unbekannt' and ' ' in friendly_name:
+                        possible_area = friendly_name.split(' ')[0]
+                        if possible_area.lower() in [a.lower() for a in areas.values()]:
+                            area = possible_area
+                    
+                    # Erstelle das Gerät
+                    device = {
+                        'id': device_id,
+                        'name': friendly_name,
+                        'manufacturer': state['attributes'].get('manufacturer', 'Unbekannt'),
+                        'model': state['attributes'].get('model', 'Unbekannt'),
+                        'type': self.get_device_type(entity_id),
+                        'location': area
+                    }
+                    devices.append(device)
+        
+        print(f"Gefundene Geräte: {len(devices)}")
+        return devices
+    except Exception as e:
+        print(f"Fehler beim Abrufen der Geräte: {e}")
+        return []
     
     def get_device_registry(self):
         """Holt das Geräteregister aus Home Assistant"""
@@ -216,31 +243,73 @@ class HomeAssistantAPI:
 
     def get_areas(self):
         """Holt alle Bereiche/Räume aus Home Assistant"""
-        endpoints = [
-            "/config/area_registry",
-            "/areas",
-            "/area_registry"
-        ]
+        try:
+            # Da die Area-Registry nicht verfügbar ist, erstelle eine Liste aus den States
+            response = requests.get(f"{self.base_url}/states", headers=self.headers)
+            response.raise_for_status()
+            all_states = response.json()
+            
+            # Suche nach Zonen und Bereichen in den States
+            areas = []
+            seen_areas = set()
+            
+            # Zuerst explizite Area-Entitäten suchen
+            for state in all_states:
+                entity_id = state['entity_id']
+                if entity_id.startswith('zone.') or entity_id.startswith('area.'):
+                    friendly_name = state['attributes'].get('friendly_name', entity_id.split('.')[1])
+                    area_id = entity_id
+                    
+                    if friendly_name not in seen_areas:
+                        seen_areas.add(friendly_name)
+                        areas.append({
+                            'id': area_id,
+                            'name': friendly_name
+                        })
         
-        for endpoint in endpoints:
-            try:
-                url = f"{self.base_url}{endpoint}"
-                print(f"Versuche Areas: {url}")
-                response = requests.get(url, headers=self.headers)
-                response.raise_for_status()
-                areas = response.json()
-                
-                result = sorted([{
-                    'id': area['area_id'],
-                    'name': area['name']
-                } for area in areas], key=lambda x: x['name'])
-                
-                print(f"✅ Areas erfolgreich abgerufen über {endpoint}: {len(result)} Bereiche gefunden")
-                return result
-            except Exception as e:
-                print(f"❌ Endpunkt {endpoint} für Areas nicht erfolgreich: {e}")
+        # Dann Areas aus Geräteeigenschaften extrahieren
+        for state in all_states:
+            if 'area_id' in state['attributes']:
+                area_name = state['attributes'].get('area_name', state['attributes']['area_id'])
+                if area_name not in seen_areas:
+                    seen_areas.add(area_name)
+                    areas.append({
+                        'id': state['attributes']['area_id'],
+                        'name': area_name
+                    })
         
-        print("⚠️ Keine Areas gefunden, verwende Standard-Bereiche")
+        # Dann versuche, Raumnamen aus den Gerätenamen zu extrahieren
+        for state in all_states:
+            if 'friendly_name' in state['attributes']:
+                name = state['attributes']['friendly_name']
+                if ' ' in name:
+                    possible_area = name.split(' ')[0]
+                    # Typische Raumnamen prüfen
+                    if possible_area.lower() in ['wohnzimmer', 'küche', 'schlafzimmer', 'badezimmer', 
+                                               'flur', 'büro', 'keller', 'garage', 'garten']:
+                        if possible_area not in seen_areas:
+                            seen_areas.add(possible_area)
+                            areas.append({
+                                'id': f"extracted_{possible_area.lower()}",
+                                'name': possible_area
+                            })
+        
+        # Wenn immer noch keine Areas gefunden wurden, verwende Standard-Areas
+        if not areas:
+            areas = [
+                {'id': 'default_living_room', 'name': 'Wohnzimmer'},
+                {'id': 'default_kitchen', 'name': 'Küche'},
+                {'id': 'default_bedroom', 'name': 'Schlafzimmer'},
+                {'id': 'default_bathroom', 'name': 'Badezimmer'},
+                {'id': 'default_office', 'name': 'Büro'}
+            ]
+        
+        # Sortiere nach Namen
+        sorted_areas = sorted(areas, key=lambda x: x['name'])
+        print(f"Gefundene Bereiche: {len(sorted_areas)}")
+        return sorted_areas
+    except Exception as e:
+        print(f"Fehler beim Abrufen der Bereiche: {e}")
         # Standard-Bereiche als Fallback
         return [
             {'id': 'default_living_room', 'name': 'Wohnzimmer'},
