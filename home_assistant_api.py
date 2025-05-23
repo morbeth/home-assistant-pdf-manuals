@@ -41,12 +41,21 @@ class HomeAssistantAPI:
     def get_device_registry(self):
         """Holt das Geräteregister aus Home Assistant"""
         try:
-            response = requests.get(f"{self.base_url}/config/device_registry", headers=self.headers)
+            # Neuer API-Endpunkt in neueren Home Assistant Versionen
+            response = requests.get(f"{self.ha_base_url}/config/device_registry", headers=self.headers)
             response.raise_for_status()
             return response.json()
         except Exception as e:
             print(f"Fehler beim Abrufen des Geräteregisters: {e}")
-            return []
+            try:
+                # Fallback für ältere Versionen
+                response = requests.get(f"{self.ha_base_url}/devices", headers=self.headers)
+                response.raise_for_status()
+                return response.json()
+            except Exception as e2:
+                print(f"Auch mit alternativem Endpunkt fehlgeschlagen: {e2}")
+                return []
+
 
     def get_entity_registry(self):
         """Holt das Entity-Register aus Home Assistant"""
