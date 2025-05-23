@@ -13,12 +13,23 @@ app = Flask(__name__,
             static_url_path='/static')  # URL-Pfad für statische Dateien
 app.secret_key = os.urandom(24)
 
+# Debug-Log für den Startup
+print("Starting Flask app...")
+print(f"Host environment: IP={os.environ.get('HOST_IP', 'unknown')}")
+
 # Nach der Flask-App-Initialisierung und vor den Routen hinzufügen
 @app.before_request
 def fix_ingress():
     """Korrigiert die URL für Home Assistant Ingress"""
     # X-Ingress-Path Header von Nginx enthält den Basispfad
     ingress_path = request.headers.get('X-Ingress-Path', '')
+    x_forwarded_proto = request.headers.get('X-Forwarded-Proto', '')
+    x_forwarded_host = request.headers.get('X-Forwarded-Host', '')
+    
+    # Debug-Informationen
+    print(f"Request headers: Ingress-Path={ingress_path}, Host={request.host}, " 
+          f"X-Forwarded-Host={x_forwarded_host}, X-Forwarded-Proto={x_forwarded_proto}")
+    
     if ingress_path:
         # WSGI-Umgebung anpassen
         request.environ['SCRIPT_NAME'] = ingress_path
@@ -26,29 +37,36 @@ def fix_ingress():
         if path_info.startswith(ingress_path):
             request.environ['PATH_INFO'] = path_info[len(ingress_path):]
         
-        # Debug-Informationen ausgeben
         print(f"Ingress aktiviert: Pfad={ingress_path}, PATH_INFO={request.environ['PATH_INFO']}")
 
 # Nach der fix_ingress-Funktion hinzufügen
 def get_base_url():
     """Gibt die Basis-URL für Links zurück, unter Berücksichtigung von Ingress"""
+    # X-Ingress-Path prüfen (Home Assistant spezifisch)
+    ingress_path = request.headers.get('X-Ingress-Path', '')
+    if ingress_path:
+        print(f"Verwende Ingress-Basis-URL: {ingress_path}")
+        return ingress_path
+    
+    # SCRIPT_NAME aus der WSGI-Umgebung prüfen
     script_name = request.environ.get('SCRIPT_NAME', '')
     if script_name:
-        # Wenn ein Ingress-Pfad existiert, verwende ihn
-        print(f"Verwende Basis-URL: {script_name}")
+        print(f"Verwende SCRIPT_NAME-Basis-URL: {script_name}")
         return script_name
     
-    # Wenn kein Ingress-Pfad existiert, versuche den Host mit Port zu konstruieren
-    host = request.host
-    if not ':' in host and app.config.get('SERVER_PORT'):
-        # Wenn der Host keinen Port enthält, füge ihn hinzu
-        host = f"{host}:{app.config.get('SERVER_PORT')}"
+    # Wenn wir hinter einem Proxy sind, verwende X-Forwarded-* Header
+    x_forwarded_host = request.headers.get('X-Forwarded-Host', '')
+    x_forwarded_proto = request.headers.get('X-Forwarded-Proto', '')
     
-    # Verwende das gleiche Schema (http/https) wie die Anfrage
-    scheme = request.scheme
-    base_url = f"{scheme}://{host}"
-    print(f"Konstruierte Basis-URL: {base_url}")
-    return ""  # Gib einen leeren String zurück, da die URL durch Flask mit Hostnamen erstellt wird
+    if x_forwarded_host:
+        proto = x_forwarded_proto if x_forwarded_proto else 'http'
+        base_url = f"{proto}://{x_forwarded_host}"
+        print(f"Verwende X-Forwarded-Basis-URL: {base_url}")
+        return ""  # Leere Basis-URL, da die vollständige URL von Flask generiert wird
+    
+    # Direkte Anfrage (kein Proxy/Ingress)
+    print("Keine Proxy/Ingress-Header gefunden. Verwende leere Basis-URL.")
+    return ""
 
 # Die Funktion für alle Templates verfügbar machen
 @app.context_processor
@@ -68,6 +86,7 @@ def custom_url_for(endpoint, **values):
             # Entferne den führenden Slash, um Doppel-Slashes zu vermeiden
             original_url = original_url[1:]
         result = urljoin(base_url + '/', original_url)
+        print(f"URL umgeschrieben: {original_url} -> {result}")
         return result
     
     return original_url
@@ -151,6 +170,11 @@ def load_manuals():
                 'timestamp': timestamp
             })
     return sorted(manuals, key=lambda x: x['timestamp'])
+
+# Statusendpunkt für Healthchecks
+@app.route('/healthcheck')
+def healthcheck():
+    return "OK", 200
 
 @app.route('/')
 def index():
@@ -352,4 +376,8 @@ def import_ha_devices():
         return redirect(custom_url_for('list_devices'))
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8099, debug=True)
+    # Beide Ports unterstützen (5000 für Healthcheck, 8099 für regulären Betrieb)
+    # In Produktion würde man hier einen WSGI-Server wie Gunicorn verwenden
+    port = int(os.environ.get('PORT', 8099))
+    print(f"Starting Flask app on port {port}")
+    app.run(host='0.0.0.0', port=port, debug=True)
