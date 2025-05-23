@@ -466,4 +466,24 @@ h2 {
     }
 }
 
-/* Viewport-Meta-Tag nicht vergessen! */
+/* Stil für die Bulk-Aktionen */
+.bulk-actions {
+    margin-bottom: 1rem;
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.button.delete {
+    background-color: #e74c3c;
+    color: white;
+    border: none;
+    cursor: pointer;
+}
+
+.button.secondary {
+    background-color: #95a5a6;
+    color: white;
+    border: none;
+    cursor: pointer;
+}

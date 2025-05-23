@@ -24,52 +24,115 @@
     {% endwith %}
 
     <div class="content">
-        <table class="data-table">
-            <thead>
-            <tr>
-                <th>Name</th>
-                <th>Typ</th>
-                <th>Standort</th>
-                <th>Anleitung</th>
-                {% if devices and devices[0].get('ha_imported') %}
-                <th>Hersteller</th>
-                <th>Modell</th>
+        <form method="post" action="{{ url_for('delete_multiple_devices') }}" id="deviceForm">
+            <div class="bulk-actions">
+                <button type="button" onclick="selectAll()" class="button secondary">Alle auswählen</button>
+                <button type="button" onclick="deselectAll()" class="button secondary">Keine auswählen</button>
+                <button type="submit" class="button delete" onclick="return confirmDelete()">Ausgewählte löschen</button>
+                {% if devices %}
+                <a href="{{ url_for('delete_all_devices') }}" class="button delete"
+                   onclick="return confirm('Wirklich ALLE Geräte löschen? Diese Aktion kann nicht rückgängig gemacht werden!')">
+                    Alle Geräte löschen
+                </a>
                 {% endif %}
-                <th>Aktionen</th>
-            </tr>
-            </thead>
-            <tbody>
-            {% for device in devices %}
-            <tr>
-                <td>{{ device.name }}</td>
-                <td>{{ device.type }}</td>
-                <td>{{ device.location }}</td>
-                <td>
-                    {% if device.manual %}
-                    <a href="{{ url_for('view_manual', filename=device.manual) }}">{{ device.manual }}</a>
-                    {% else %}
-                    <span class="empty">Keine Anleitung</span>
+            </div>
+
+            <table class="data-table">
+                <thead>
+                <tr>
+                    <th><input type="checkbox" id="selectAllCheckbox" onclick="toggleAll(this)"></th>
+                    <th>Name</th>
+                    <th>Typ</th>
+                    <th>Standort</th>
+                    <th>Anleitung</th>
+                    {% if devices and devices[0].get('ha_imported') %}
+                    <th>Hersteller</th>
+                    <th>Modell</th>
                     {% endif %}
-                </td>
-                {% if devices and devices[0].get('ha_imported') %}
-                <td>{{ device.get('manufacturer', 'Unbekannt') }}</td>
-                <td>{{ device.get('model', 'Unbekannt') }}</td>
-                {% endif %}
-                <td class="actions">
-                    <a href="{{ url_for('edit_device', device_id=loop.index0) }}" class="action-btn edit">Bearbeiten</a>
-                    <a href="{{ url_for('delete_device', device_id=loop.index0) }}"
-                       class="action-btn delete"
-                       onclick="return confirm('Gerät wirklich löschen?')">Löschen</a>
-                </td>
-            </tr>
-            {% else %}
-            <tr>
-                <td colspan="5" class="empty">Keine Geräte vorhanden</td>
-            </tr>
-            {% endfor %}
-            </tbody>
-        </table>
+                    <th>Aktionen</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for device in devices %}
+                <tr>
+                    <td><input type="checkbox" name="device_ids" value="{{ loop.index0 }}" class="device-checkbox"></td>
+                    <td>{{ device.name }}</td>
+                    <td>{{ device.type }}</td>
+                    <td>{{ device.location }}</td>
+                    <td>
+                        {% if device.manual %}
+                        <a href="{{ url_for('view_manual', filename=device.manual) }}">{{ device.manual }}</a>
+                        {% else %}
+                        <span class="empty">Keine Anleitung</span>
+                        {% endif %}
+                    </td>
+                    {% if devices and devices[0].get('ha_imported') %}
+                    <td>{{ device.get('manufacturer', 'Unbekannt') }}</td>
+                    <td>{{ device.get('model', 'Unbekannt') }}</td>
+                    {% endif %}
+                    <td class="actions">
+                        <a href="{{ url_for('edit_device', device_id=loop.index0) }}" class="action-btn edit">Bearbeiten</a>
+                        <a href="{{ url_for('delete_device', device_id=loop.index0) }}"
+                           class="action-btn delete"
+                           onclick="return confirm('Gerät wirklich löschen?')">Löschen</a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="{% if devices and devices[0].get('ha_imported') %}8{% else %}6{% endif %}" class="empty">Keine Geräte vorhanden</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </form>
     </div>
 </div>
+
+<script>
+    // Alle Checkboxen auswählen
+    function selectAll() {
+        var checkboxes = document.getElementsByClassName('device-checkbox');
+        for (var i = 0; i < checkboxes.length; i++) {
+            checkboxes[i].checked = true;
+        }
+        document.getElementById('selectAllCheckbox').checked = true;
+    }
+
+    // Alle Checkboxen abwählen
+    function deselectAll() {
+        var checkboxes = document.getElementsByClassName('device-checkbox');
+        for (var i = 0; i < checkboxes.length; i++) {
+            checkboxes[i].checked = false;
+        }
+        document.getElementById('selectAllCheckbox').checked = false;
+    }
+
+    // "Alle auswählen" Checkbox
+    function toggleAll(source) {
+        var checkboxes = document.getElementsByClassName('device-checkbox');
+        for (var i = 0; i < checkboxes.length; i++) {
+            checkboxes[i].checked = source.checked;
+        }
+    }
+
+    // Bestätigung vor dem Löschen
+    function confirmDelete() {
+        var checkboxes = document.getElementsByClassName('device-checkbox');
+        var selectedCount = 0;
+
+        for (var i = 0; i < checkboxes.length; i++) {
+            if (checkboxes[i].checked) {
+                selectedCount++;
+            }
+        }
+
+        if (selectedCount === 0) {
+            alert('Bitte wählen Sie mindestens ein Gerät aus.');
+            return false;
+        }
+
+        return confirm('Wirklich ' + selectedCount + ' Gerät(e) löschen? Diese Aktion kann nicht rückgängig gemacht werden!');
+    }
+</script>
 </body>
 </html>

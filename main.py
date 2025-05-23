@@ -739,6 +739,53 @@ def import_ha_devices():
         flash(f'Fehler beim Importieren der Geräte: {str(e)}')
         return redirect(custom_url_for('list_devices'))
 
+@app.route('/delete_multiple_devices', methods=['POST'])
+def delete_multiple_devices():
+    """Löscht mehrere ausgewählte Geräte"""
+    devices = load_devices()
+
+    # Ausgewählte Geräte-IDs aus dem Formular erhalten
+    device_ids = request.form.getlist('device_ids')
+
+    if not device_ids:
+        flash('Keine Geräte zum Löschen ausgewählt')
+        return redirect(custom_url_for('list_devices'))
+
+    # In Zahlen umwandeln und absteigend sortieren (wichtig für korrektes Löschen)
+    device_ids = [int(device_id) for device_id in device_ids]
+    device_ids.sort(reverse=True)
+
+    # Zähler für gelöschte Geräte
+    deleted_count = 0
+
+    # Geräte aus der Liste entfernen (von hinten nach vorne)
+    for device_id in device_ids:
+        if 0 <= device_id < len(devices):
+            devices.pop(device_id)
+            deleted_count += 1
+
+    # Geräteliste speichern
+    save_devices(devices)
+
+    flash(f'{deleted_count} Gerät(e) erfolgreich gelöscht')
+    return redirect(custom_url_for('list_devices'))
+
+@app.route('/delete_all_devices')
+def delete_all_devices():
+    """Löscht alle Geräte"""
+    devices = load_devices()
+    count = len(devices)
+
+    if count == 0:
+        flash('Keine Geräte zum Löschen vorhanden')
+        return redirect(custom_url_for('list_devices'))
+
+    # Leere Geräteliste speichern
+    save_devices([])
+
+    flash(f'Alle {count} Geräte wurden gelöscht')
+    return redirect(custom_url_for('list_devices'))
+
 if __name__ == '__main__':
     # Beide Ports unterstützen (5000 für Healthcheck, 8099 für regulären Betrieb)
     # In Produktion würde man hier einen WSGI-Server wie Gunicorn verwenden
