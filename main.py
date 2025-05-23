@@ -694,18 +694,33 @@ def import_ha_devices():
         # Vorhandene Geräte-IDs abrufen, um Duplikate zu vermeiden
         existing_ids = {device.get('id') for device in current_devices if 'id' in device}
         
+        # Bereiche aus Home Assistant abrufen (für Standortzuordnung)
+        ha_areas = ha_api.get_areas()
+        area_names = [area['name'] for area in ha_areas]
+
         # Geräte aus Home Assistant abrufen
         ha_devices = ha_api.get_devices()
         imported_count = 0
-        
+
         for device in ha_devices:
             if device['id'] not in existing_ids:
+                # Standort des Geräts verarbeiten
+                location = device['location']
+
+                # Prüfen, ob der Standort in den bekannten Bereichen existiert
+                # Wenn nicht, behalten wir ihn trotzdem bei
+                if location == 'Unbekannt' and 'friendly_name' in device and ' ' in device['name']:
+                    # Versuchen, den Standort aus dem Namen zu extrahieren
+                    possible_location = device['name'].split(' ')[0]
+                    if len(possible_location) > 3 and possible_location not in ['Der', 'Die', 'Das']:
+                        location = possible_location
+
                 # Erstellen Sie ein neues Gerät im Format Ihrer Anwendung
                 new_device = {
                     'id': device['id'],
                     'name': device['name'],
                     'type': device['type'],
-                    'location': device['location'],
+                    'location': location,  # Verwende den extrahierten oder originalen Standort
                     'manual': None,  # Keine Anleitung zugewiesen
                     'manufacturer': device['manufacturer'],
                     'model': device['model'],
