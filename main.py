@@ -80,19 +80,49 @@ def custom_url_for(endpoint, **values):
     original_url = url_for(endpoint, **values)
     base_url = get_base_url()
     
+    # Vermeide doppelte Base-URLs
     if base_url and not original_url.startswith(base_url):
         # Wenn die Basis-URL noch nicht im Original enthalten ist
+        
+        # Wenn das original_url mit /static beginnt, stellen wir sicher, dass wir
+        # nicht versehentlich einen doppelten Basis-URL-Pfad erzeugen
         if original_url.startswith('/'):
-            # Entferne den führenden Slash, um Doppel-Slashes zu vermeiden
+            original_url = original_url[1:]  # Entferne führenden Slash
+            
+        # Log für Debugging
+        print(f"URL-Generierung: original={original_url}, base_url={base_url}")
+        
+        # Stellen Sie sicher, dass die URL korrekt ist (keine doppelten Slashes)
+        if base_url.endswith('/') and original_url.startswith('/'):
             original_url = original_url[1:]
+        elif not base_url.endswith('/') and not original_url.startswith('/'):
+            result = f"{base_url}/{original_url}"
+            print(f"URL umgeschrieben (einfach): {original_url} -> {result}")
+            return result
+        
+        # Verwende urljoin für komplexere Fälle
         result = urljoin(base_url + '/', original_url)
-        print(f"URL umgeschrieben: {original_url} -> {result}")
+        print(f"URL umgeschrieben (urljoin): {original_url} -> {result}")
         return result
     
     return original_url
 
 # Ersetze die globale url_for-Funktion
 app.jinja_env.globals['url_for'] = custom_url_for
+
+# Funktion für statische Dateien korrigieren
+@app.route('/static/<path:filename>')
+def serve_static(filename):
+    """Spezielle Route für statische Dateien mit korrektem MIME-Typ"""
+    response = send_from_directory('static', filename)
+    
+    # Setze den MIME-Typ explizit für CSS-Dateien
+    if filename.endswith('.css'):
+        response.headers['Content-Type'] = 'text/css'
+    elif filename.endswith('.js'):
+        response.headers['Content-Type'] = 'application/javascript'
+    
+    return response
 
 # Jinja2 Filter für Datumsformatierung hinzufügen
 @app.template_filter('strftime')
@@ -108,6 +138,27 @@ def _slice(iterable, start, end=None, step=None):
     if end is None:
         end = len(iterable)
     return iterable[start:end:step]
+
+# Hilfsfunktion für statische Dateien im Template
+@app.context_processor
+def utility_processor():
+    def static_url(filename):
+        """Generiert URLs für statische Dateien mit einer einzigen Basis-URL"""
+        url = url_for('serve_static', filename=filename)
+        # Entferne mögliche doppelte Basis-URLs
+        base_url = get_base_url()
+        if base_url:
+            # Überprüfe, ob die URL bereits die Basis enthält
+            base_pattern = base_url
+            if not base_pattern.startswith('/'):
+                base_pattern = '/' + base_pattern
+            if url.count(base_pattern) > 1:
+                # Entferne alle Vorkommen außer dem ersten
+                parts = url.split(base_pattern)
+                if len(parts) > 1:
+                    url = base_pattern.join([parts[0], ''.join(parts[1:])])
+        return url
+    return dict(static_url=static_url)
 
 # Pfade für die Datenspeicherung
 UPLOAD_FOLDER = '/data/manuals'
@@ -330,10 +381,6 @@ def delete_device(device_id):
         flash('Gerät erfolgreich gelöscht')
 
     return redirect(custom_url_for('list_devices'))
-
-@app.route('/static/<path:filename>')
-def serve_static(filename):
-    return send_from_directory('static', filename)
 
 @app.route('/import_ha_devices')
 def import_ha_devices():
