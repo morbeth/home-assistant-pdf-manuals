@@ -543,8 +543,70 @@ def list_manuals():
 
 @app.route('/devices')
 def list_devices():
+    all_devices = load_devices()
+
+    # Flag, ob irgendein Gerät aus HA importiert wurde (für Spaltenanzeige)
+    any_ha = any(d.get('ha_imported') for d in all_devices)
+
+    # Query-Parameter: location-Filter und Sortierung
+    selected_location = request.args.get('location')
+    sort_by = request.args.get('sort', 'name')  # 'name' oder 'location'
+
+    # Liste der verfügbaren Standorte (alphabetisch)
+    locations = sorted({(d.get('location') or '').strip() for d in all_devices if d.get('location')})
+
+    # View-Model erstellen: originale Indizes beibehalten
+    view_devices = [{'idx': i, **d} for i, d in enumerate(all_devices)]
+
+    # Filtern nach Standort
+    if selected_location:
+        view_devices = [d for d in view_devices if (d.get('location') or '') == selected_location]
+
+    # Sortieren
+    if sort_by == 'location':
+        view_devices.sort(key=lambda d: ((d.get('location') or '').lower(), (d.get('name') or '').lower()))
+    else:
+        # Standard: nach Name
+        view_devices.sort(key=lambda d: (d.get('name') or '').lower())
+
+    return render_template(
+        'devices.html',
+        devices=view_devices,
+        locations=locations,
+        selected_location=selected_location,
+        sort_by=sort_by,
+        any_ha=any_ha
+    )
+
+@app.route('/locations')
+def list_locations_view():
+    """Zeigt alle Standorte mit Anzahl enthaltener Geräte"""
     devices = load_devices()
-    return render_template('devices.html', devices=devices)
+    counts = {}
+    for d in devices:
+        loc = (d.get('location') or '').strip()
+        if not loc:
+            loc = 'Unbekannt'
+        counts[loc] = counts.get(loc, 0) + 1
+
+    # Sortiert nach Name
+    locations = sorted(counts.items(), key=lambda x: x[0].lower())
+    return render_template('locations.html', locations=locations)
+
+@app.route('/locations/<path:location>')
+def list_devices_by_location(location):
+    """Zeigt Geräte eines einzelnen Standorts"""
+    all_devices = load_devices()
+    # View-Model mit Original-Index
+    view_devices = [{'idx': i, **d} for i, d in enumerate(all_devices) if (d.get('location') or '') == location]
+
+    # Spaltenanzeige-Flag
+    any_ha = any(d.get('ha_imported') for d in view_devices)
+
+    # Nach Name sortieren
+    view_devices.sort(key=lambda d: (d.get('name') or '').lower())
+
+    return render_template('location_devices.html', devices=view_devices, location=location, any_ha=any_ha)
 
 @app.route('/upload', methods=['GET', 'POST'])
 def upload_manual():

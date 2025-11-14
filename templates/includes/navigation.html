@@ -13,6 +13,9 @@
         <a href="{{ base_url }}{{ url_for('list_devices') }}" class="nav-item {% if request.endpoint == 'list_devices' %}active{% endif %}">
             <i class="nav-icon device-icon"></i>Geräte
         </a>
+        <a href="{{ base_url }}{{ url_for('list_locations_view') }}" class="nav-item {% if request.endpoint in ['list_locations_view', 'list_devices_by_location'] %}active{% endif %}">
+            <i class="nav-icon"></i>Standorte
+        </a>
     </div>
 
     <div class="nav-actions">
@@ -47,6 +50,7 @@
         <i class="nav-icon back-icon"></i>Übersicht
     </a>
     <a href="{{ base_url }}{{ url_for('list_devices') }}" class="nav-item">Alle Geräte</a>
+    <a href="{{ base_url }}{{ url_for('list_locations_view') }}" class="nav-item">Standorte</a>
     <a href="{{ base_url }}{{ url_for('add_device') }}" class="nav-item">Gerät hinzufügen</a>
     <a href="{{ base_url }}{{ url_for('import_ha_devices') }}" class="nav-item">Aus Home Assistant importieren</a>
 </nav>

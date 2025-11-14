@@ -24,8 +24,29 @@
     {% endwith %}
 
     <div class="content">
+        <div class="bulk-actions" style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem;">
+            <form method="get" action="{{ url_for('list_devices') }}" style="display:flex;gap:.5rem;align-items:center;">
+                <label for="location">Standort:</label>
+                <select name="location" id="location" onchange="this.form.submit()">
+                    <option value="">Alle</option>
+                    {% for loc in locations %}
+                    <option value="{{ loc }}">{{ loc }}</option>
+                    {% endfor %}
+                </select>
+                <label for="sort">Sortieren:</label>
+                <select name="sort" id="sort" onchange="this.form.submit()">
+                    <option value="name">Name</option>
+                    <option value="location">Standort</option>
+                </select>
+                {% if selected_location %}
+                <a class="button secondary" href="{{ url_for('list_devices') }}">Filter zurücksetzen</a>
+                {% endif %}
+            </form>
+            <div style="flex:1"></div>
+        </div>
+
         <form method="post" action="{{ url_for('delete_multiple_devices') }}" id="deviceForm">
-            <div class="bulk-actions">
+            <div class="bulk-actions" style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:.5rem;">
                 <button type="button" onclick="selectAll()" class="button secondary">Alle auswählen</button>
                 <button type="button" onclick="deselectAll()" class="button secondary">Keine auswählen</button>
                 <button type="submit" class="button delete" onclick="return confirmDelete()">Ausgewählte löschen</button>
@@ -45,7 +66,7 @@
                     <th>Typ</th>
                     <th>Standort</th>
                     <th>Anleitung</th>
-                    {% if devices and devices[0].get('ha_imported') %}
+                    {% if any_ha %}
                     <th>Hersteller</th>
                     <th>Modell</th>
                     {% endif %}
@@ -55,10 +76,16 @@
                 <tbody>
                 {% for device in devices %}
                 <tr>
-                    <td><input type="checkbox" name="device_ids" value="{{ loop.index0 }}" class="device-checkbox"></td>
+                    <td><input type="checkbox" name="device_ids" value="{{ device.idx }}" class="device-checkbox"></td>
                     <td>{{ device.name }}</td>
                     <td>{{ device.type }}</td>
-                    <td>{{ device.location }}</td>
+                    <td>
+                        {% if device.location %}
+                        <a href="{{ url_for('list_devices_by_location', location=device.location) }}">{{ device.location }}</a>
+                        {% else %}
+                        <span class="empty">Unbekannt</span>
+                        {% endif %}
+                    </td>
                     <td>
                         {% if device.manual %}
                         <a href="{{ url_for('view_manual', filename=device.manual) }}">{{ device.manual }}</a>
@@ -66,20 +93,20 @@
                         <span class="empty">Keine Anleitung</span>
                         {% endif %}
                     </td>
-                    {% if devices and devices[0].get('ha_imported') %}
+                    {% if any_ha %}
                     <td>{{ device.get('manufacturer', 'Unbekannt') }}</td>
                     <td>{{ device.get('model', 'Unbekannt') }}</td>
                     {% endif %}
                     <td class="actions">
-                        <a href="{{ url_for('edit_device', device_id=loop.index0) }}" class="action-btn edit">Bearbeiten</a>
-                        <a href="{{ url_for('delete_device', device_id=loop.index0) }}"
+                        <a href="{{ url_for('edit_device', device_id=device.idx) }}" class="action-btn edit">Bearbeiten</a>
+                        <a href="{{ url_for('delete_device', device_id=device.idx) }}"
                            class="action-btn delete"
                            onclick="return confirm('Gerät wirklich löschen?')">Löschen</a>
                     </td>
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="{% if devices and devices[0].get('ha_imported') %}8{% else %}6{% endif %}" class="empty">Keine Geräte vorhanden</td>
+                    <td colspan="{% if any_ha %}8{% else %}6{% endif %}" class="empty">Keine Geräte vorhanden</td>
                 </tr>
                 {% endfor %}
                 </tbody>

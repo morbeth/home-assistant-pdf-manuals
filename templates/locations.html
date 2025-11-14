@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Standorte</title>
+    <link rel="stylesheet" href="{{ static_url('styles.css') }}">
+</head>
+<body>
+<div class="container">
+    <h1>Standorte</h1>
+
+    {% from 'includes/navigation.html' import nav_devices %}
+    {{ nav_devices() }}
+
+    <div class="content">
+        <table class="data-table">
+            <thead>
+            <tr>
+                <th>Standort</th>
+                <th>Anzahl Geräte</th>
+                <th>Aktionen</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for loc, count in locations %}
+            <tr>
+                <td>{{ loc }}</td>
+                <td>{{ count }}</td>
+                <td class="actions">
+                    <a class="action-btn" href="{{ url_for('list_devices_by_location', location=loc) }}">Anzeigen</a>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="3" class="empty">Keine Standorte gefunden</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+</body>
+</html>

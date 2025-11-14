@@ -2,12 +2,12 @@
 
 # Verzeichnisse erstellen
 mkdir -p /data/manuals /data/devices /app/templates /app/static /run/nginx
-chmod 777 -R /data /app/templates /app/static /run
+chmod 777 -R /data /app/templates /app/static /run/nginx
 rm -f /run/nginx/nginx.pid
 
 echo "Starte Flask..."
 # Starte Flask im Hintergrund
-python3 -u /app/main.py &
+python3 -u main.py &
 FLASK_PID=$!
 
 echo "Warte auf Flask-Start..."
