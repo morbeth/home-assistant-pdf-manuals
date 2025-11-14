@@ -37,7 +37,7 @@
             <tr>
                 <td>{{ device.name }}</td>
                 <td>{{ device.type }}</td>
-                <td>{{ device.location or 'Unbekannt' }}</td>
+                <td>{{ device.location or 'Nicht zugewiesen' }}</td>
                 <td>
                     {% if device.manual %}
                     <a href="{{ url_for('view_manual', filename=device.manual) }}">{{ device.manual }}</a>

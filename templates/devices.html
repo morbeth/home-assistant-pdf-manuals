@@ -28,15 +28,15 @@
             <form method="get" action="{{ url_for('list_devices') }}" style="display:flex;gap:.5rem;align-items:center;">
                 <label for="location">Standort:</label>
                 <select name="location" id="location" onchange="this.form.submit()">
-                    <option value="">Alle</option>
+                    <option value="" {% if not selected_location %}selected{% endif %}>Alle</option>
                     {% for loc in locations %}
-                    <option value="{{ loc }}">{{ loc }}</option>
+                    <option value="{{ loc }}" {% if selected_location == loc %}selected{% endif %}>{{ loc }}</option>
                     {% endfor %}
                 </select>
                 <label for="sort">Sortieren:</label>
                 <select name="sort" id="sort" onchange="this.form.submit()">
-                    <option value="name">Name</option>
-                    <option value="location">Standort</option>
+                    <option value="name" {% if sort_by == 'name' %}selected{% endif %}>Name</option>
+                    <option value="location" {% if sort_by == 'location' %}selected{% endif %}>Standort</option>
                 </select>
                 {% if selected_location %}
                 <a class="button secondary" href="{{ url_for('list_devices') }}">Filter zurücksetzen</a>
@@ -83,7 +83,7 @@
                         {% if device.location %}
                         <a href="{{ url_for('list_devices_by_location', location=device.location) }}">{{ device.location }}</a>
                         {% else %}
-                        <span class="empty">Unbekannt</span>
+                        <span class="empty">Nicht zugewiesen</span>
                         {% endif %}
                     </td>
                     <td>

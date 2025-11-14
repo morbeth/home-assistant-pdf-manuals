@@ -452,6 +452,67 @@ h1, h2, h3 {
 # Home Assistant API initialisieren
 ha_api = HomeAssistantAPI()
 
+# ---------------------------------
+# HA-Bereiche beim Start übernehmen
+# ---------------------------------
+LOCATIONS_FILE = '/data/locations.json'
+
+def _merge_locations_with_ha():
+    """Lädt Bereiche aus Home Assistant und merged sie in locations.json (keine Duplikate).
+    Wird beim Start einmalig versucht. Fehler führen nur zu Logausgabe, kein Crash.
+    """
+    try:
+        ha_areas = ha_api.get_areas() or []
+        ha_names = []
+        for a in ha_areas:
+            n = (a.get('name') or '').strip()
+            if n:
+                ha_names.append(n)
+
+        if not ha_names:
+            print("HA-Area-Refresh: Keine Bereiche erhalten – überspringe Merge (verwende bestehenden Cache)")
+            return
+
+        # Bestehende Locations laden
+        existing = []
+        if os.path.exists(LOCATIONS_FILE):
+            try:
+                with open(LOCATIONS_FILE, 'r') as f:
+                    existing = json.load(f)
+            except Exception as e:
+                print(f"HA-Area-Refresh: Konnte {LOCATIONS_FILE} nicht lesen: {e}")
+                existing = []
+
+        # Set für schnellen Vergleich
+        exist_names_lower = { (l.get('name') or '').strip().lower() for l in existing }
+
+        added = 0
+        for name in sorted(set(ha_names), key=lambda x: x.lower()):
+            if name.strip().lower() in exist_names_lower:
+                continue
+            existing.append({'name': name.strip(), 'slug': _slugify(name)})
+            exist_names_lower.add(name.strip().lower())
+            added += 1
+
+        if added:
+            try:
+                os.makedirs(os.path.dirname(LOCATIONS_FILE), exist_ok=True)
+                with open(LOCATIONS_FILE, 'w') as f:
+                    json.dump(existing, f, indent=4, ensure_ascii=False)
+                print(f"HA-Area-Refresh: {added} Bereich(e) aus HA hinzugefügt")
+            except Exception as e:
+                print(f"HA-Area-Refresh: Speichern von {LOCATIONS_FILE} fehlgeschlagen: {e}")
+        else:
+            print("HA-Area-Refresh: Keine neuen Bereiche – Cache unverändert")
+    except Exception as e:
+        print(f"HA-Area-Refresh: Fehler beim Abruf aus HA: {e}")
+
+# Beim Start versuchen, die HA-Bereiche zu mergen
+try:
+    _merge_locations_with_ha()
+except Exception as _e:
+    print(f"HA-Area-Refresh (Startup) fehlgeschlagen: {_e}")
+
 # Hilfsfunktion zum Laden der Geräte
 def load_devices():
     if os.path.exists(DEVICES_FILE):
@@ -463,7 +524,7 @@ def load_devices():
 # Standorte (Räume) Verwaltung
 # ------------------------------
 
-LOCATIONS_FILE = '/data/locations.json'
+# Hinweis: LOCATIONS_FILE wurde weiter oben definiert
 
 def _slugify(name: str) -> str:
     """Einfache Slug-Funktion für URL/IDs der Standorte."""
