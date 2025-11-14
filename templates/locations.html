@@ -13,21 +13,31 @@
     {{ nav_devices() }}
 
     <div class="content">
+        <div class="bulk-actions" style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem;">
+            <a class="button primary" href="{{ url_for('add_location') }}">Standort hinzufügen</a>
+            <a class="button" href="{{ url_for('import_locations_from_ha') }}">Aus Home Assistant importieren</a>
+        </div>
+
         <table class="data-table">
             <thead>
             <tr>
                 <th>Standort</th>
                 <th>Anzahl Geräte</th>
-                <th>Aktionen</th>
+                <th style="width:280px;">Aktionen</th>
             </tr>
             </thead>
             <tbody>
-            {% for loc, count in locations %}
+            {% for loc in locations %}
             <tr>
-                <td>{{ loc }}</td>
-                <td>{{ count }}</td>
+                <td>{{ loc.name }}</td>
+                <td>{{ loc.count }}</td>
                 <td class="actions">
-                    <a class="action-btn" href="{{ url_for('list_devices_by_location', location=loc) }}">Anzeigen</a>
+                    <a class="action-btn" href="{{ url_for('list_devices_by_location', location=loc.name) }}">Anzeigen</a>
+                    <a class="action-btn edit" href="{{ url_for('edit_location', slug=loc.slug) }}">Bearbeiten</a>
+                    <form method="post" action="{{ url_for('delete_location', slug=loc.slug) }}" style="display:inline;"
+                          onsubmit="return confirm('Standort wirklich löschen? Nur möglich, wenn keine Geräte zugeordnet sind.');">
+                        <button type="submit" class="action-btn delete">Löschen</button>
+                    </form>
                 </td>
             </tr>
             {% else %}

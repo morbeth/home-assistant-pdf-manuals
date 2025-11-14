@@ -459,6 +459,72 @@ def load_devices():
             return json.load(f)
     return []
 
+# ------------------------------
+# Standorte (Räume) Verwaltung
+# ------------------------------
+
+LOCATIONS_FILE = '/data/locations.json'
+
+def _slugify(name: str) -> str:
+    """Einfache Slug-Funktion für URL/IDs der Standorte."""
+    import re
+    s = (name or '').strip().lower()
+    # deutsche Umlaute ersetzen
+    s = s.replace('ä', 'ae').replace('ö', 'oe').replace('ü', 'ue').replace('ß', 'ss')
+    # nur buchstaben, zahlen und bindestrich
+    s = re.sub(r'[^a-z0-9]+', '-', s)
+    s = re.sub(r'-{2,}', '-', s).strip('-')
+    return s or 'unbenannt'
+
+def load_locations():
+    """Lädt die Liste der Standorte. Falls Datei fehlt, wird sie aus Geräten befüllt."""
+    # Seed aus Geräten falls nötig
+    if not os.path.exists(LOCATIONS_FILE):
+        seed_locations_from_devices()
+
+    if os.path.exists(LOCATIONS_FILE):
+        try:
+            with open(LOCATIONS_FILE, 'r') as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"Fehler beim Laden von {LOCATIONS_FILE}: {e}")
+    return []
+
+def save_locations(locations):
+    with open(LOCATIONS_FILE, 'w') as f:
+        json.dump(locations, f, indent=4, ensure_ascii=False)
+
+def ensure_location_exists(name: str):
+    """Stellt sicher, dass ein Standort mit Namen existsiert, sonst wird er angelegt."""
+    if not name:
+        return
+    locations = load_locations()
+    names_lower = {l['name'].strip().lower() for l in locations}
+    if name.strip().lower() not in names_lower:
+        locations.append({'name': name.strip(), 'slug': _slugify(name)})
+        save_locations(locations)
+
+def seed_locations_from_devices():
+    """Erzeugt eine Startliste der Standorte aus den vorhandenen Geräten."""
+    devices = load_devices()
+    unique = []
+    seen = set()
+    for d in devices:
+        loc = (d.get('location') or '').strip()
+        if not loc:
+            continue
+        key = loc.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append({'name': loc, 'slug': _slugify(loc)})
+    if unique:
+        try:
+            os.makedirs(os.path.dirname(LOCATIONS_FILE), exist_ok=True)
+            save_locations(unique)
+        except Exception as e:
+            print(f"Konnte Standorte nicht initial speichern: {e}")
+
 # Hilfsfunktion zum Speichern der Geräte
 def save_devices(devices):
     with open(DEVICES_FILE, 'w') as f:
@@ -552,8 +618,12 @@ def list_devices():
     selected_location = request.args.get('location')
     sort_by = request.args.get('sort', 'name')  # 'name' oder 'location'
 
-    # Liste der verfügbaren Standorte (alphabetisch)
-    locations = sorted({(d.get('location') or '').strip() for d in all_devices if d.get('location')})
+    # Liste der verfügbaren Standorte (alphabetisch) aus locations.json (Fallback: aus Geräten)
+    loc_entries = load_locations()
+    if loc_entries:
+        locations = [l['name'] for l in loc_entries]
+    else:
+        locations = sorted({(d.get('location') or '').strip() for d in all_devices if d.get('location')})
 
     # View-Model erstellen: originale Indizes beibehalten
     view_devices = [{'idx': i, **d} for i, d in enumerate(all_devices)]
@@ -580,18 +650,29 @@ def list_devices():
 
 @app.route('/locations')
 def list_locations_view():
-    """Zeigt alle Standorte mit Anzahl enthaltener Geräte"""
+    """Verwaltet Standorte: zeigt Liste aus locations.json inkl. Geräteanzahl und Aktionen."""
+    # sicherstellen, dass initiale Standorte vorhanden sind
+    seed_locations_from_devices()
     devices = load_devices()
+    locations = load_locations()
+
+    # Anzahl Geräte pro Standort berechnen
     counts = {}
     for d in devices:
-        loc = (d.get('location') or '').strip()
-        if not loc:
-            loc = 'Unbekannt'
-        counts[loc] = counts.get(loc, 0) + 1
+        loc_name = (d.get('location') or '').strip()
+        if not loc_name:
+            continue
+        counts[loc_name] = counts.get(loc_name, 0) + 1
+
+    # Liste mit count anreichern
+    enriched = []
+    for l in locations:
+        name = l['name']
+        enriched.append({'name': name, 'slug': l.get('slug') or _slugify(name), 'count': counts.get(name, 0)})
 
     # Sortiert nach Name
-    locations = sorted(counts.items(), key=lambda x: x[0].lower())
-    return render_template('locations.html', locations=locations)
+    enriched.sort(key=lambda x: x['name'].lower())
+    return render_template('locations.html', locations=enriched)
 
 @app.route('/locations/<path:location>')
 def list_devices_by_location(location):
@@ -607,6 +688,126 @@ def list_devices_by_location(location):
     view_devices.sort(key=lambda d: (d.get('name') or '').lower())
 
     return render_template('location_devices.html', devices=view_devices, location=location, any_ha=any_ha)
+
+# ------------------------------
+# Standorte: CRUD & Import
+# ------------------------------
+
+@app.route('/locations/add', methods=['GET', 'POST'])
+def add_location():
+    if request.method == 'POST':
+        name = (request.form.get('name') or '').strip()
+        if not name:
+            flash('Name des Standorts darf nicht leer sein')
+            return redirect(custom_url_for('add_location'))
+
+        locations = load_locations()
+        new_slug = _slugify(name)
+        # Duplikate verhindern (nach Name oder Slug)
+        if any(l['name'].strip().lower() == name.lower() or (l.get('slug') == new_slug) for l in locations):
+            flash('Ein Standort mit diesem Namen existiert bereits')
+            return redirect(custom_url_for('list_locations_view'))
+
+        locations.append({'name': name, 'slug': new_slug})
+        save_locations(locations)
+        flash('Standort wurde angelegt')
+        return redirect(custom_url_for('list_locations_view'))
+
+    return render_template('location_form.html', mode='add')
+
+
+@app.route('/locations/<slug>/edit', methods=['GET', 'POST'])
+def edit_location(slug):
+    locations = load_locations()
+    loc = next((l for l in locations if (l.get('slug') or _slugify(l['name'])) == slug), None)
+    if not loc:
+        flash('Standort nicht gefunden')
+        return redirect(custom_url_for('list_locations_view'))
+
+    if request.method == 'POST':
+        new_name = (request.form.get('name') or '').strip()
+        cascade = request.form.get('cascade') == 'on'
+        if not new_name:
+            flash('Name des Standorts darf nicht leer sein')
+            return redirect(custom_url_for('edit_location', slug=slug))
+
+        new_slug = _slugify(new_name)
+        # Prüfe Duplikate (außer für sich selbst)
+        for l in locations:
+            if l is loc:
+                continue
+            if l['name'].strip().lower() == new_name.lower() or (l.get('slug') == new_slug):
+                flash('Ein anderer Standort mit diesem Namen existiert bereits')
+                return redirect(custom_url_for('edit_location', slug=slug))
+
+        old_name = loc['name']
+        loc['name'] = new_name
+        loc['slug'] = new_slug
+        save_locations(locations)
+
+        if cascade and old_name != new_name:
+            # Geräte umziehen
+            devices = load_devices()
+            changed = False
+            for d in devices:
+                if (d.get('location') or '') == old_name:
+                    d['location'] = new_name
+                    changed = True
+            if changed:
+                save_devices(devices)
+        flash('Standort wurde aktualisiert')
+        return redirect(custom_url_for('list_locations_view'))
+
+    return render_template('location_form.html', mode='edit', location=loc)
+
+
+@app.route('/locations/<slug>/delete', methods=['POST'])
+def delete_location(slug):
+    locations = load_locations()
+    loc = next((l for l in locations if (l.get('slug') or _slugify(l['name'])) == slug), None)
+    if not loc:
+        flash('Standort nicht gefunden')
+        return redirect(custom_url_for('list_locations_view'))
+
+    # Prüfen, ob genutzt
+    devices = load_devices()
+    used = any((d.get('location') or '').strip().lower() == loc['name'].strip().lower() for d in devices)
+    if used:
+        flash('Standort kann nicht gelöscht werden, da ihm Geräte zugeordnet sind')
+        return redirect(custom_url_for('list_locations_view'))
+
+    # Löschen
+    locations = [l for l in locations if (l.get('slug') or _slugify(l['name'])) != slug]
+    save_locations(locations)
+    flash('Standort wurde gelöscht')
+    return redirect(custom_url_for('list_locations_view'))
+
+
+@app.route('/locations/import_ha')
+def import_locations_from_ha():
+    """Importiert Bereiche aus Home Assistant als Standorte (Merge, keine Duplikate)."""
+    try:
+        ha_areas = ha_api.get_areas()
+        names = [a['name'] for a in ha_areas if a.get('name')]
+        if not names:
+            flash('Keine Bereiche aus Home Assistant gefunden')
+            return redirect(custom_url_for('list_locations_view'))
+
+        locations = load_locations()
+        existing = {l['name'].strip().lower() for l in locations}
+        added = 0
+        for n in names:
+            if n.strip().lower() in existing:
+                continue
+            locations.append({'name': n.strip(), 'slug': _slugify(n)})
+            existing.add(n.strip().lower())
+            added += 1
+        if added:
+            save_locations(locations)
+        flash(f'{added} Standort(e) aus Home Assistant importiert')
+    except Exception as e:
+        flash(f'Fehler beim Import der Standorte: {e}')
+    return redirect(custom_url_for('list_locations_view'))
 
 @app.route('/upload', methods=['GET', 'POST'])
 def upload_manual():
@@ -673,6 +874,9 @@ def add_device():
             flash('Bitte füllen Sie alle Pflichtfelder aus')
             return redirect(custom_url_for('add_device'))
 
+        # Standort sicherstellen/anlegen
+        ensure_location_exists(location)
+
         # Neues Gerät erstellen
         new_device = {
             'name': name,
@@ -692,10 +896,11 @@ def add_device():
     # Anleitungen für die Auswahl laden
     manuals = [manual['name'] for manual in load_manuals()]
 
-    # Bereiche aus Home Assistant laden
-    areas = ha_api.get_areas()
+    # Standorte laden (frei anlegbar, optional aus HA importierbar)
+    loc_entries = load_locations()
+    locations = [l['name'] for l in loc_entries] if loc_entries else []
 
-    return render_template('add_device.html', manuals=manuals, areas=areas)
+    return render_template('add_device.html', manuals=manuals, locations=locations)
 
 @app.route('/edit_device/<int:device_id>', methods=['GET', 'POST'])
 def edit_device(device_id):
@@ -715,6 +920,9 @@ def edit_device(device_id):
             flash('Bitte füllen Sie alle Pflichtfelder aus')
             return redirect(custom_url_for('edit_device', device_id=device_id))
 
+        # Standort sicherstellen/anlegen
+        ensure_location_exists(location)
+
         # Gerät aktualisieren
         devices[device_id]['name'] = name
         devices[device_id]['type'] = device_type
@@ -728,10 +936,11 @@ def edit_device(device_id):
     # Anleitungen für die Auswahl laden
     manuals = [manual['name'] for manual in load_manuals()]
 
-    # Bereiche aus Home Assistant laden
-    areas = ha_api.get_areas()
+    # Standorte laden
+    loc_entries = load_locations()
+    locations = [l['name'] for l in loc_entries] if loc_entries else []
 
-    return render_template('edit_device.html', device=devices[device_id], device_id=device_id, manuals=manuals, areas=areas)
+    return render_template('edit_device.html', device=devices[device_id], device_id=device_id, manuals=manuals, locations=locations)
 
 @app.route('/delete_device/<int:device_id>')
 def delete_device(device_id):
@@ -776,6 +985,9 @@ def import_ha_devices():
                     possible_location = device['name'].split(' ')[0]
                     if len(possible_location) > 3 and possible_location not in ['Der', 'Die', 'Das']:
                         location = possible_location
+
+                # Standort in Locations-Datei sicherstellen
+                ensure_location_exists(location)
 
                 # Erstellen Sie ein neues Gerät im Format Ihrer Anwendung
                 new_device = {

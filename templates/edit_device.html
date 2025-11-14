@@ -34,15 +34,15 @@
                 <label for="type">Typ*</label>
                 <select id="type" name="type" required>
                     <option value="">-- Bitte wählen --</option>
-                    <option value="Beleuchtung" {% if device.type == 'Beleuchtung' %}selected{% endif %}>Beleuchtung</option>
-                    <option value="Schalter" {% if device.type == 'Schalter' %}selected{% endif %}>Schalter</option>
-                    <option value="Sensor" {% if device.type == 'Sensor' %}selected{% endif %}>Sensor</option>
-                    <option value="Binärer Sensor" {% if device.type == 'Binärer Sensor' %}selected{% endif %}>Binärer Sensor</option>
-                    <option value="Klima" {% if device.type == 'Klima' %}selected{% endif %}>Klima</option>
-                    <option value="Medienplayer" {% if device.type == 'Medienplayer' %}selected{% endif %}>Medienplayer</option>
-                    <option value="Kamera" {% if device.type == 'Kamera' %}selected{% endif %}>Kamera</option>
-                    <option value="Staubsauger" {% if device.type == 'Staubsauger' %}selected{% endif %}>Staubsauger</option>
-                    <option value="Sonstiges" {% if device.type == 'Sonstiges' %}selected{% endif %}>Sonstiges</option>
+                    <option value="Beleuchtung">Beleuchtung</option>
+                    <option value="Schalter">Schalter</option>
+                    <option value="Sensor">Sensor</option>
+                    <option value="Binärer Sensor">Binärer Sensor</option>
+                    <option value="Klima">Klima</option>
+                    <option value="Medienplayer">Medienplayer</option>
+                    <option value="Kamera">Kamera</option>
+                    <option value="Staubsauger">Staubsauger</option>
+                    <option value="Sonstiges">Sonstiges</option>
                 </select>
             </div>
 
@@ -50,8 +50,8 @@
                 <label for="location">Standort*</label>
                 <select id="location" name="location" required>
                     <option value="">-- Bitte wählen --</option>
-                    {% for area in areas %}
-                    <option value="{{ area.name }}" {% if device.location == area.name %}selected{% endif %}>{{ area.name }}</option>
+                    {% for loc in locations %}
+                    <option value="{{ loc }}">{{ loc }}</option>
                     {% endfor %}
                     <option value="Sonstiger Ort" id="sonstigerOrt">Sonstiger Ort</option>
                 </select>
@@ -67,7 +67,7 @@
                 <select id="manual" name="manual">
                     <option value="">-- Keine Anleitung --</option>
                     {% for manual in manuals %}
-                    <option value="{{ manual }}" {% if device.manual == manual %}selected{% endif %}>{{ manual }}</option>
+                    <option value="{{ manual }}">{{ manual }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -80,18 +80,24 @@
 </div>
 
 <script>
-    // Funktion zum Überprüfen, ob der aktuelle Standort in der Liste der Bereiche ist
+    // Funktion zum Überprüfen, ob der aktuelle Standort in der Liste der Standorte ist
     function checkLocationInAreas() {
         var locationSelect = document.getElementById('location');
         var customLocationGroup = document.getElementById('customLocationGroup');
         var customLocationInput = document.getElementById('customLocation');
         var sonstigerOrtOption = document.getElementById('sonstigerOrt');
 
-        // Überprüfen, ob der aktuelle Standort in der Liste der Bereiche ist
+        // Überprüfen, ob der aktuelle Standort in der Liste der Standorte ist
         var currentLocation = "{{ device.location }}";
-        var areaNames = [{% for area in areas %}"{{ area.name }}"{% if not loop.last %}, {% endif %}{% endfor %}];
+        var areaNames = [];
+        for (var i = 0; i < locationSelect.options.length; i++) {
+            var opt = locationSelect.options[i];
+            if (opt.value && opt.value !== 'Sonstiger Ort') {
+                areaNames.push(opt.value);
+            }
+        }
 
-        // Wenn der aktuelle Standort nicht in der Liste der Bereiche ist und nicht 'Unbekannt' ist
+        // Wenn der aktuelle Standort nicht in der Liste ist und nicht 'Unbekannt' ist
         if (areaNames.indexOf(currentLocation) === -1 && currentLocation !== "Unbekannt") {
             // 'Sonstiger Ort' auswählen
             sonstigerOrtOption.selected = true;
@@ -100,6 +106,9 @@
             customLocationGroup.style.display = 'block';
             customLocationInput.required = true;
             customLocationInput.value = currentLocation;
+        } else {
+            // Vorbelegen der Auswahl, falls vorhanden
+            locationSelect.value = currentLocation;
         }
     }
 
@@ -139,6 +148,14 @@
 
     // Initialisierung
     window.onload = function() {
+        // Setze vorausgewählte Werte für Typ und Anleitung per JS (vermeidet Template-Attribute)
+        var typeSelect = document.getElementById('type');
+        var manualSelect = document.getElementById('manual');
+        var currentType = "{{ device.type }}";
+        var currentManual = "{{ device.manual or '' }}";
+        if (currentType) { typeSelect.value = currentType; }
+        if (currentManual) { manualSelect.value = currentManual; }
+
         checkLocationInAreas();
     };
 </script>

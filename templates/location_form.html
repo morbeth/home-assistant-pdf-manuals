@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if mode == 'edit' %}Standort bearbeiten{% else %}Standort hinzufügen{% endif %}</title>
+    <link rel="stylesheet" href="{{ static_url('styles.css') }}">
+</head>
+<body>
+<div class="container">
+    <h1>{% if mode == 'edit' %}Standort bearbeiten{% else %}Standort hinzufügen{% endif %}</h1>
+
+    {% from 'includes/navigation.html' import nav_devices %}
+    {{ nav_devices() }}
+
+    {% with messages = get_flashed_messages() %}
+    {% if messages %}
+    <div class="messages">
+        {% for message in messages %}
+        <div class="message">{{ message }}</div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <div class="content">
+        <form method="post" class="form">
+            <div class="form-group">
+                <label for="name">Name des Standorts*</label>
+                <input type="text" id="name" name="name" required
+                       value="{% if mode == 'edit' %}{{ location.name }}{% endif %}">
+            </div>
+
+            {% if mode == 'edit' %}
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" name="cascade">
+                    Zugeordnete Geräte beim Umbenennen ebenfalls auf den neuen Namen umstellen
+                </label>
+            </div>
+            {% endif %}
+
+            <div class="form-actions">
+                <button type="submit" class="button primary">{% if mode == 'edit' %}Speichern{% else %}Anlegen{% endif %}</button>
+                <a href="{{ url_for('list_locations_view') }}" class="button secondary">Abbrechen</a>
+            </div>
+        </form>
+    </div>
+</div>
+</body>
+</html>

@@ -51,8 +51,8 @@
                 <label for="location">Standort*</label>
                 <select id="location" name="location" required>
                     <option value="">-- Bitte wählen --</option>
-                    {% for area in areas %}
-                    <option value="{{ area.name }}">{{ area.name }}</option>
+                    {% for loc in locations %}
+                    <option value="{{ loc }}">{{ loc }}</option>
                     {% endfor %}
                     <option value="Sonstiger Ort">Sonstiger Ort</option>
                 </select>
