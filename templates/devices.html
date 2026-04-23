@@ -43,6 +43,10 @@
                 {% endif %}
             </form>
             <div style="flex:1"></div>
+            <a href="{{ url_for('auto_search_manuals') }}"
+               class="button primary"
+               onclick="return confirm('Anleitungen für alle Geräte ohne Manual automatisch suchen und herunterladen?')"
+               style="white-space:nowrap">Alle Anleitungen suchen</a>
         </div>
 
         <form method="post" action="{{ url_for('delete_multiple_devices') }}" id="deviceForm">
@@ -98,6 +102,11 @@
                     <td>{{ device.get('model', 'Unbekannt') }}</td>
                     {% endif %}
                     <td class="actions">
+                        {% if not device.manual %}
+                        <a href="{{ url_for('search_manual_for_device', device_id=device.idx) }}"
+                           class="action-btn search"
+                           title="Anleitung automatisch suchen und herunterladen">Anleitung suchen</a>
+                        {% endif %}
                         <a href="{{ url_for('edit_device', device_id=device.idx) }}" class="action-btn edit">Bearbeiten</a>
                         <a href="{{ url_for('delete_device', device_id=device.idx) }}"
                            class="action-btn delete"

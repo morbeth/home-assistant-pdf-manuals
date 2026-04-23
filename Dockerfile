@@ -13,7 +13,8 @@ RUN pip3 install --no-cache-dir \
     flask==2.0.1 \
     werkzeug==2.0.1 \
     PyPDF2==2.11.1 \
-    requests
+    requests \
+    beautifulsoup4
 
 # Arbeitsverzeichnis erstellen
 WORKDIR /app
@@ -30,6 +31,7 @@ RUN mkdir -p /data/manuals \
 COPY nginx.conf /etc/nginx/nginx.conf
 COPY main.py /app/
 COPY home_assistant_api.py /app/
+COPY manual_downloader.py /app/
 COPY run.sh /app/
 COPY templates/ /app/templates/
 COPY static/ /app/static/

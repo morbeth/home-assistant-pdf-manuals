@@ -7,6 +7,7 @@ import PyPDF2
 from werkzeug.utils import secure_filename
 from home_assistant_api import HomeAssistantAPI  # Importieren Sie die HomeAssistantAPI-Klasse
 from urllib.parse import urljoin
+from manual_downloader import find_and_download_manual
 
 app = Flask(__name__,
             static_folder='static',  # Ordner mit statischen Dateien
@@ -1120,6 +1121,64 @@ def delete_all_devices():
 
     flash(f'Alle {count} Geräte wurden gelöscht')
     return redirect(custom_url_for('list_devices'))
+
+@app.route('/search_manual/<int:device_id>')
+def search_manual_for_device(device_id):
+    """Sucht und lädt automatisch eine Anleitung für ein einzelnes Gerät herunter."""
+    devices = load_devices()
+    if device_id < 0 or device_id >= len(devices):
+        flash('Gerät nicht gefunden')
+        return redirect(custom_url_for('list_devices'))
+
+    device = devices[device_id]
+    filename, error = find_and_download_manual(
+        device.get('name', ''),
+        device.get('manufacturer', 'Unbekannt'),
+        device.get('model', 'Unbekannt'),
+        UPLOAD_FOLDER
+    )
+
+    if filename:
+        devices[device_id]['manual'] = filename
+        save_devices(devices)
+        flash(f'Anleitung "{filename}" erfolgreich gefunden und heruntergeladen')
+    else:
+        flash(f'Anleitung nicht gefunden: {error}')
+
+    return redirect(custom_url_for('list_devices'))
+
+
+@app.route('/auto_search_manuals')
+def auto_search_manuals():
+    """Sucht und lädt Anleitungen für alle Geräte ohne zugewiesene Anleitung."""
+    devices = load_devices()
+    success_count = 0
+    fail_count = 0
+
+    for i, device in enumerate(devices):
+        if device.get('manual'):
+            continue  # Bereits eine Anleitung vorhanden
+
+        filename, error = find_and_download_manual(
+            device.get('name', ''),
+            device.get('manufacturer', 'Unbekannt'),
+            device.get('model', 'Unbekannt'),
+            UPLOAD_FOLDER
+        )
+
+        if filename:
+            devices[i]['manual'] = filename
+            success_count += 1
+        else:
+            fail_count += 1
+            print(f"Kein Manual für '{device.get('name')}': {error}")
+
+        time.sleep(1)  # Rate-Limiting
+
+    save_devices(devices)
+    flash(f'{success_count} Anleitung(en) heruntergeladen, {fail_count} nicht gefunden')
+    return redirect(custom_url_for('list_devices'))
+
 
 if __name__ == '__main__':
     # Beide Ports unterstützen (5000 für Healthcheck, 8099 für regulären Betrieb)

@@ -120,6 +120,11 @@ h2 {
     color: white;
 }
 
+.action-btn.search {
+    background-color: #27ae60;
+    color: white;
+}
+
 .action-btn.view {
     background-color: #3498db;
     color: white;
