@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.0.29] - 2026-04-23
+
+### Verbessert
+- **Device Registry robuster**: `websocket-client` ist jetzt optional – fehlt die Bibliothek (kein Docker-Rebuild), wird automatisch auf REST-Fallback gewechselt
+  - REST-Fallback importiert nur Entitäten mit echten `manufacturer`- und `model`-Attributen (physische Hardware)
+  - Geräte ohne Hersteller/Modell werden im Fallback-Modus übersprungen
+- **Anleitung-Suche verbessert**: Zwei-Stufen-Strategie statt einzelner Quelle
+  - Stufe 1: manualslib.com (robustere HTML-Auswertung mit mehreren Selektoren)
+  - Stufe 2: DuckDuckGo Lite als Fallback – sucht direkte PDF-Links im gesamten Web
+  - Geräte mit unbekanntem Hersteller/Modell werden sofort übersprungen (kein sinnloser Suchversuch)
+- **Debug-Endpunkt** `/debug_ha` zeigt rohe HA-Geräte- und Bereichsdaten zur Fehlersuche
+
+---
+
 ## [1.0.28] - 2026-04-23
 
 ### Neu

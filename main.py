@@ -1122,6 +1122,18 @@ def delete_all_devices():
     flash(f'Alle {count} Geräte wurden gelöscht')
     return redirect(custom_url_for('list_devices'))
 
+@app.route('/debug_ha')
+def debug_ha():
+    """Zeigt rohe HA-Gerätedaten zur Fehlersuche."""
+    import json as _json
+    try:
+        devices = ha_api.get_devices()
+        areas   = ha_api.get_areas()
+        return f"<pre>Geräte ({len(devices)}):\n{_json.dumps(devices[:10], indent=2, ensure_ascii=False)}\n\nBereiche ({len(areas)}):\n{_json.dumps(areas, indent=2, ensure_ascii=False)}</pre>"
+    except Exception as e:
+        return f"<pre>Fehler: {e}</pre>", 500
+
+
 @app.route('/search_manual/<int:device_id>')
 def search_manual_for_device(device_id):
     """Sucht und lädt automatisch eine Anleitung für ein einzelnes Gerät herunter."""
