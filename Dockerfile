@@ -14,7 +14,8 @@ RUN pip3 install --no-cache-dir \
     werkzeug==2.0.1 \
     PyPDF2==2.11.1 \
     requests \
-    beautifulsoup4
+    beautifulsoup4 \
+    websocket-client
 
 # Arbeitsverzeichnis erstellen
 WORKDIR /app
